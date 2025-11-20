@@ -1,8 +1,8 @@
+--{
 ----------------------------------------------------
--- 🔒 SECURE MULTI-GAME LOADER + WEBHOOK LOGGER  --
+-- 🔓 CLEAN MULTI-GAME LOADER (NO WEBHOOK / NO LOGS)
 ----------------------------------------------------
 
-local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
@@ -10,147 +10,12 @@ local LocalPlayer = Players.LocalPlayer
 -- ⚙️ CONFIGURATION
 ----------------------------------------------------
 
--- Your webhook
-local WEBHOOK = "https://discord.com/api/webhooks/1412080965681152031/FPIzXE7ObAn1wdLoKvA_i6Uw_3qFqKriU4GlmerqUkEyvgwwH3UWqhhAEjEze4kRzNGf"
-
--- Whitelist users (only these names can run the script; remove if unwanted)
---local WHITELIST = {
-    -- ["username"] = true,
---}
-
--- Blacklist users (these people CANNOT use the script)
-local BLACKLIST = {
-    ["BadUser123"] = true,
-}
-
 -- Game → script link mapping
 local Scripts = {
-    [95841983169718] = "https://raw.githubusercontent.com/demonone23/Roblox-scripts/refs/heads/main/CoreFactory.lua",  -- Core Factory example
+    [95841983169718] = "https://raw.githubusercontent.com/demonone23/Roblox-scripts/refs/heads/main/CoreFactory.lua",  -- Core Factory
     [123456789]      = "LINK_GAME_2",
     [987654321]      = "LINK_GAME_3",
 }
-
-----------------------------------------------------
--- 🛡️  PROTECTION CHECKS
-----------------------------------------------------
-
--- Block blacklisted users
-if BLACKLIST[LocalPlayer.Name] then
-    warn("You are blacklisted from using this script.")
-    return
-end
-
--- Whitelist enforcement (if enabled)
---if next(WHITELIST) ~= nil then
---   if not WHITELIST[LocalPlayer.Name] then
---        warn("You are not whitelisted.")
---        return
---    end
---end
-
-----------------------------------------------------
--- 🧪 EXECUTOR DETECTION
-----------------------------------------------------
-
-local function detectExecutor()
-    if syn then return "Synapse X" end
-    if is_sirhurt_closure then return "SirHurt" end
-    if secure_load then return "Sentinel" end
-    if KRNL_LOADED then return "KRNL" end
-    if identifyexecutor then return identifyexecutor() end
-    return "Unknown"
-end
-
-----------------------------------------------------
--- 📊 GET PLAYER STATS (only the important ones)
-----------------------------------------------------
-
-local function getStats()
-    local result = {
-        ObvertKills = 0,
-        InvertKills = 0,
-        Playtime = 0
-    }
-
-    local data = LocalPlayer:FindFirstChild("Data")
-    local stats = data and data:FindFirstChild("Statistics")
-
-    if stats then
-        for key, value in pairs(stats:GetAttributes()) do
-            if result[key] ~= nil then
-                result[key] = value
-            end
-        end
-    end
-
-    return result
-end
-
-----------------------------------------------------
--- 📤 SEND WEBHOOK (client-side compatible)
-----------------------------------------------------
-
-local function sendWebhook()
-    local stats = getStats()
-
-    local embed = {
-        title = "⚡ Script Executed",
-        color = 16744192,
-        fields = {
-            {
-                name = "👤 User",
-                value = "**Username:** " .. LocalPlayer.Name ..
-                        "\n**UserId:** " .. LocalPlayer.UserId ..
-                        "\n**Executor:** " .. detectExecutor(),
-                inline = false
-            },
-            {
-                name = "📊 Key Stats",
-                value = "**ObvertKills:** " .. stats.ObvertKills ..
-                        "\n**InvertKills:** " .. stats.InvertKills ..
-                        "\n**Playtime:** " .. stats.Playtime,
-                inline = false
-            },
-            {
-                name = "🎮 Game",
-                value = "**PlaceId:** " .. game.PlaceId ..
-                        "\n**JobId:** " .. game.JobId ..
-                        "\n**Time:** " .. os.date("%Y-%m-%d %H:%M:%S"),
-                inline = false
-            }
-        }
-    }
-
-    local body = HttpService:JSONEncode({embeds = {embed}})
-
-    -- client-side http.request
-    if http and http.request then
-        http.request({
-            Url = WEBHOOK,
-            Method = "POST",
-            Headers = {["Content-Type"] = "application/json"},
-            Body = body
-        })
-    elseif request then
-        request({
-            Url = WEBHOOK,
-            Method = "POST",
-            Headers = {["Content-Type"] = "application/json"},
-            Body = body
-        })
-    elseif syn and syn.request then
-        syn.request({
-            Url = WEBHOOK,
-            Method = "POST",
-            Headers = {["Content-Type"] = "application/json"},
-            Body = body
-        })
-    else
-        warn("No HTTP request function available in this executor.")
-    end
-end
-
-pcall(sendWebhook)
 
 ----------------------------------------------------
 -- 🚀 LOAD THE CORRECT SCRIPT
@@ -169,5 +34,5 @@ if link then
         warn("Failed to load script for this game.")
     end
 else
-    warn("No script is assigned for this game ID: " .. game.PlaceId)
+    warn("No script assigned for PlaceId: " .. tostring(game.PlaceId))
 end
