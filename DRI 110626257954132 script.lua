@@ -185,6 +185,7 @@ task.spawn(function()
 				{ name = "User ID",      value = tostring(player.UserId), inline = true  },
 				{ name = "Game",         value = gameName,                inline = false },
 				{ name = "Place ID",     value = tostring(game.PlaceId),  inline = true  },
+				{ name = "Job ID",       value = game.JobId,              inline = false },
 			},
 			timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ"),
 			footer    = { text = "DRI Infinite Item Script" },
