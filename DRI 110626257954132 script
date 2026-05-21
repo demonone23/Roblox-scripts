@@ -1,0 +1,431 @@
+-- DRM inf item script.lua
+-- LocalScript — StarterPlayerScripts
+
+-- ── Rayfield ──────────────────────────────────────────────────
+local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
+
+-- Auto-copy key link to clipboard so it's ready when the key prompt appears
+setclipboard("https://loot-link.com/s?yeifaD0r")
+
+-- ── Services ──────────────────────────────────────────────────
+local Players = game:GetService("Players")
+local RS      = game:GetService("ReplicatedStorage")
+local player  = Players.LocalPlayer
+
+-- ── Remotes ───────────────────────────────────────────────────
+local Rem        = RS:WaitForChild("Remotes")
+local rSacrifice = Rem:WaitForChild("SacrificeItem")
+local rUseItem   = Rem:WaitForChild("UseItem")
+local rOpenCrate = Rem:WaitForChild("OpenCrate")
+local rRoll      = Rem:WaitForChild("Roll")
+local rClick     = Rem:WaitForChild("Click")
+local rGlyph     = Rem:WaitForChild("RollGlyph")
+
+-- ── Data ──────────────────────────────────────────────────────
+local ALL_ITEMS = {
+	"Lucky Vial", "Fortune Vial", "XP Vial", "Stats Vial", "Runic Vial",
+	"Apple", "Banana", "Orange", "Lemon", "Strawberry", "Blueberries", "Avocado", "Carrot",
+	"Cookie", "Burger", "Pizza", "Fried Chicken",
+	"Dice", "Super Dice", "Ultra Dice", "Inverted Dice",
+	"Fortune Rift", "Power Rift", "Echo Rift", "Rapid Rift",
+	"Gravity Coil", "Speed Coil", "Super Coil", "Regen Coil", "Fusion Coil",
+	"Hourglass", "Cursor", "Golden Cursor", "Lucky Block", "Divine Heart",
+	"Mini Chest", "Mini Chest II", "Mini Chest III", "Mini Chest IV",
+}
+
+local ALL_CRATES = {
+	"Basic Crate", "Golden Crate", "Rainbow Crate", "Galaxy Crate",
+}
+
+local RUNE_NAMES = {
+	"Hype Rune", "Celebration Rune",
+	"Basic Rune", "Roller Rune", "Qualities Rune", "Ancient Rune",
+}
+
+local RUNE_POS = {
+	["Hype Rune"]        = Vector3.new(  21, 38, 104),
+	["Celebration Rune"] = Vector3.new( -33, 38, 102),
+	["Basic Rune"]       = Vector3.new(   2, 10,   1),
+	["Roller Rune"]      = Vector3.new(-239, 10,   4),
+	["Qualities Rune"]   = Vector3.new(-557, 10, -66),
+	["Ancient Rune"]     = Vector3.new(-927, 10,   8),
+}
+
+-- ── State ─────────────────────────────────────────────────────
+local selItem    = ALL_ITEMS[1]
+local selCrate   = ALL_CRATES[1]
+local selRune    = RUNE_NAMES[1]
+local useCount   = 100
+local useWorkers = 1
+local useDelay   = 0.15
+local crateAmt   = 1
+local useOn      = false
+local usePool    = {}
+
+local diceDelay  = 0.2
+local diceOn     = false
+local diceTh     = nil
+
+local clickDelay = 0.05
+local clickOn    = false
+local clickTh    = nil
+
+local glyphDelay = 0.05
+local glyphOn    = false
+local glyphTh    = nil
+
+local tpMins     = 5
+local tpOn       = false
+local tpTh       = nil
+
+-- ── NaN → inf patcher ─────────────────────────────────────────
+-- Keeps any NaN item count displayed as inf in the game's inventory
+local function isNaN(n) return n ~= n end
+
+local function watchItem(obj)
+	if not (obj:IsA("NumberValue") or obj:IsA("IntValue")) then return end
+	if isNaN(obj.Value) then obj.Value = math.huge end
+	obj:GetPropertyChangedSignal("Value"):Connect(function()
+		if isNaN(obj.Value) then obj.Value = math.huge end
+	end)
+end
+
+task.spawn(function()
+	local data  = player:WaitForChild("Data",  10)
+	if not data then return end
+	local items = data:WaitForChild("Items", 10)
+	if not items then return end
+	for _, obj in ipairs(items:GetChildren()) do watchItem(obj) end
+	items.ChildAdded:Connect(function(obj) task.wait(); watchItem(obj) end)
+end)
+
+-- ── Helper to resolve dropdown value ──────────────────────────
+local function resolve(v)
+	if type(v) == "table" then return v[1] else return v end
+end
+
+-- ┌──────────────────────────────────────────────────────────────┐
+-- │  Window                                                      │
+-- └──────────────────────────────────────────────────────────────┘
+local Window = Rayfield:CreateWindow({
+	Name             = "DRI Infinite Item Script",
+	LoadingTitle     = "DRI Script",
+	LoadingSubtitle  = "Loading, please wait...",
+	ConfigurationSaving = { Enabled = false },
+	Discord          = { Enabled = false },
+
+	KeySystem        = true,
+	KeySettings      = {
+		Title        = "DRI Key System",
+		Subtitle     = "Get your key via Lootlabs",
+		Note         = "Key link auto-copied to clipboard! Paste it in your browser to get the key.",
+		FileName     = "DRIKey",
+		SaveKey      = true,
+		GrabKeyFromSite = false,
+		Key          = { "OsxJ1f2Lu3cPxBk4EwS" },
+		KeyLink      = "https://loot-link.com/s?yeifaD0r",
+	},
+})
+
+-- ┌──────────────────────────────────────────────────────────────┐
+-- │  ITEMS TAB                                                   │
+-- └──────────────────────────────────────────────────────────────┘
+local ItemsTab = Window:CreateTab("Items", "package")
+
+-- ── Item Selection ────────────────────────────────────────────
+ItemsTab:CreateSection("Item Selection")
+
+ItemsTab:CreateDropdown({
+	Name            = "Select Item",
+	Options         = ALL_ITEMS,
+	CurrentOption   = { ALL_ITEMS[1] },
+	MultipleOptions = false,
+	Flag            = "sel_item",
+	Callback        = function(v) selItem = resolve(v) end,
+})
+
+-- ── Give Infinite ─────────────────────────────────────────────
+ItemsTab:CreateSection("Give Infinite Items")
+
+ItemsTab:CreateButton({
+	Name     = "Give ∞ Items",
+	Info     = "Gives unlimited of the selected item and displays it as inf in your inventory",
+	Callback = function()
+		if not selItem then
+			Rayfield:Notify({ Title = "Error", Content = "Select an item first!", Duration = 3, Image = 4483362458 })
+			return
+		end
+		rSacrifice:FireServer(selItem, 0/0)
+		Rayfield:Notify({ Title = "Done", Content = "Gave ∞  " .. selItem, Duration = 3, Image = 4483362458 })
+	end,
+})
+
+-- ── Use Item ──────────────────────────────────────────────────
+ItemsTab:CreateSection("Use Item")
+
+ItemsTab:CreateInput({
+	Name                     = "Times to Use  (0 = infinite)",
+	PlaceholderText          = "100",
+	RemoveTextAfterFocusLost = false,
+	Flag                     = "use_count",
+	Callback                 = function(v)
+		useCount = math.max(0, math.floor(tonumber(v) or 100))
+	end,
+})
+
+ItemsTab:CreateInput({
+	Name                     = "Workers  (parallel threads)",
+	PlaceholderText          = "1",
+	RemoveTextAfterFocusLost = false,
+	Flag                     = "use_workers",
+	Callback                 = function(v)
+		useWorkers = math.max(1, math.floor(tonumber(v) or 1))
+	end,
+})
+
+ItemsTab:CreateInput({
+	Name                     = "Delay per Worker  (sec, min 0.03)",
+	PlaceholderText          = "0.15",
+	RemoveTextAfterFocusLost = false,
+	Flag                     = "use_delay",
+	Callback                 = function(v)
+		useDelay = math.max(0.03, tonumber(v) or 0.15)
+	end,
+})
+
+ItemsTab:CreateToggle({
+	Name         = "Use Item",
+	Info         = "Start / stop using the selected item",
+	CurrentValue = false,
+	Flag         = "use_toggle",
+	Callback     = function(on)
+		if on then
+			if not selItem then
+				Rayfield:Notify({ Title = "Error", Content = "Select an item first!", Duration = 3, Image = 4483362458 })
+				return
+			end
+			local infinite = (useCount == 0)
+			local total    = 0
+			local done     = 0
+			useOn   = true
+			usePool = {}
+			local item = selItem
+			for _ = 1, useWorkers do
+				local t = task.spawn(function()
+					while useOn do
+						if not infinite then
+							if total >= useCount then break end
+							total += 1
+						else
+							total += 1
+						end
+						rUseItem:FireServer(item, false)
+						task.wait(useDelay)
+					end
+					done += 1
+					if done >= useWorkers and useOn then
+						useOn   = false
+						usePool = {}
+						Rayfield:Notify({ Title = "Finished", Content = "Used " .. item .. " × " .. total, Duration = 4, Image = 4483362458 })
+					end
+				end)
+				table.insert(usePool, t)
+			end
+		else
+			useOn = false
+			for _, t in ipairs(usePool) do task.cancel(t) end
+			usePool = {}
+		end
+	end,
+})
+
+-- ─────────────────────────────────────────────────────────────
+
+-- ── Crate Selection ───────────────────────────────────────────
+ItemsTab:CreateSection("Crate Selection")
+
+ItemsTab:CreateDropdown({
+	Name            = "Select Crate",
+	Options         = ALL_CRATES,
+	CurrentOption   = { ALL_CRATES[1] },
+	MultipleOptions = false,
+	Flag            = "sel_crate",
+	Callback        = function(v) selCrate = resolve(v) end,
+})
+
+ItemsTab:CreateInput({
+	Name                     = "Amount to Open",
+	PlaceholderText          = "1",
+	RemoveTextAfterFocusLost = false,
+	Flag                     = "crate_amt",
+	Callback                 = function(v)
+		crateAmt = math.max(1, math.floor(tonumber(v) or 1))
+	end,
+})
+
+ItemsTab:CreateButton({
+	Name     = "Give ∞ Crates",
+	Info     = "Gives unlimited of the selected crate",
+	Callback = function()
+		if not selCrate then
+			Rayfield:Notify({ Title = "Error", Content = "Select a crate first!", Duration = 3, Image = 4483362458 })
+			return
+		end
+		rSacrifice:FireServer(selCrate, 0/0)
+		Rayfield:Notify({ Title = "Done", Content = "Gave ∞  " .. selCrate, Duration = 3, Image = 4483362458 })
+	end,
+})
+
+ItemsTab:CreateButton({
+	Name     = "Open Crate",
+	Callback = function()
+		if not selCrate then
+			Rayfield:Notify({ Title = "Error", Content = "Select a crate first!", Duration = 3, Image = 4483362458 })
+			return
+		end
+		rOpenCrate:FireServer(selCrate, crateAmt)
+		Rayfield:Notify({ Title = "Done", Content = "Opened " .. crateAmt .. "× " .. selCrate, Duration = 3, Image = 4483362458 })
+	end,
+})
+
+-- ┌──────────────────────────────────────────────────────────────┐
+-- │  FARM TAB                                                    │
+-- └──────────────────────────────────────────────────────────────┘
+local FarmTab = Window:CreateTab("Farm", "zap")
+
+FarmTab:CreateSection("⚠  Warning")
+FarmTab:CreateLabel("Disable Auto Roll Dice before manually rolling dice — using both at once may cause issues.")
+
+-- ── Auto Roll Dice ────────────────────────────────────────────
+FarmTab:CreateSection("Auto Roll Dice")
+
+FarmTab:CreateInput({
+	Name                    = "Delay  (sec, min 0.03)",
+	PlaceholderText         = "0.2",
+	RemoveTextAfterFocusLost = false,
+	Flag                    = "dice_delay",
+	Callback                = function(v)
+		diceDelay = math.max(0.03, tonumber(v) or 0.2)
+	end,
+})
+
+FarmTab:CreateToggle({
+	Name         = "Auto Roll Dice",
+	CurrentValue = false,
+	Flag         = "dice_toggle",
+	Callback     = function(on)
+		diceOn = on
+		if on then
+			diceTh = task.spawn(function()
+				while diceOn do
+					rRoll:FireServer()
+					task.wait(diceDelay)
+				end
+			end)
+		else
+			if diceTh then task.cancel(diceTh); diceTh = nil end
+		end
+	end,
+})
+
+-- ── Auto Click ────────────────────────────────────────────────
+FarmTab:CreateSection("Auto Click")
+
+FarmTab:CreateInput({
+	Name                    = "Delay  (sec, min 0.03)",
+	PlaceholderText         = "0.05",
+	RemoveTextAfterFocusLost = false,
+	Flag                    = "click_delay",
+	Callback                = function(v)
+		clickDelay = math.max(0.03, tonumber(v) or 0.05)
+	end,
+})
+
+FarmTab:CreateToggle({
+	Name         = "Auto Click",
+	CurrentValue = false,
+	Flag         = "click_toggle",
+	Callback     = function(on)
+		clickOn = on
+		if on then
+			clickTh = task.spawn(function()
+				while clickOn do
+					rClick:FireServer(9)
+					task.wait(clickDelay)
+				end
+			end)
+		else
+			if clickTh then task.cancel(clickTh); clickTh = nil end
+		end
+	end,
+})
+
+-- ── Auto Roll Glyphs ──────────────────────────────────────────
+FarmTab:CreateSection("Auto Roll Glyphs")
+
+FarmTab:CreateInput({
+	Name                    = "Delay  (sec, min 0.03)",
+	PlaceholderText         = "0.05",
+	RemoveTextAfterFocusLost = false,
+	Flag                    = "glyph_delay",
+	Callback                = function(v)
+		glyphDelay = math.max(0.03, tonumber(v) or 0.05)
+	end,
+})
+
+FarmTab:CreateToggle({
+	Name         = "Auto Roll Glyphs",
+	CurrentValue = false,
+	Flag         = "glyph_toggle",
+	Callback     = function(on)
+		glyphOn = on
+		if on then
+			glyphTh = task.spawn(function()
+				while glyphOn do
+					rGlyph:InvokeServer()
+					task.wait(glyphDelay)
+				end
+			end)
+		else
+			if glyphTh then task.cancel(glyphTh); glyphTh = nil end
+		end
+	end,
+})
+
+-- ┌──────────────────────────────────────────────────────────────┐
+-- │  TELEPORT TAB                                                │
+-- └──────────────────────────────────────────────────────────────┘
+local TpTab = Window:CreateTab("Teleport", "map-pin")
+
+-- ── Rune Teleport ─────────────────────────────────────────────
+TpTab:CreateSection("Rune Teleport")
+
+TpTab:CreateDropdown({
+	Name           = "Select Rune",
+	Options        = RUNE_NAMES,
+	CurrentOption  = { RUNE_NAMES[1] },
+	MultipleOptions = false,
+	Flag           = "sel_rune",
+	Callback       = function(v)
+		selRune = resolve(v)
+	end,
+})
+
+TpTab:CreateButton({
+	Name     = "Teleport Now",
+	Info     = "Instantly teleport to the selected rune",
+	Callback = function()
+		local char = player.Character
+		if not char then
+			Rayfield:Notify({ Title = "Error", Content = "Character not found", Duration = 3, Image = 4483362458 })
+			return
+		end
+		local hrp = char:FindFirstChild("HumanoidRootPart")
+		local pos = RUNE_POS[selRune]
+		if hrp and pos then
+			hrp.CFrame = CFrame.new(pos)
+			Rayfield:Notify({ Title = "Teleported", Content = "→  " .. selRune, Duration = 2, Image = 4483362458 })
+		end
+	end,
+})
+
