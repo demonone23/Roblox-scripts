@@ -128,9 +128,117 @@ local Window = Rayfield:CreateWindow({
 })
 
 -- ┌──────────────────────────────────────────────────────────────┐
+-- │  AUTO TAB                                                    │
+-- └──────────────────────────────────────────────────────────────┘
+local AutoTab = Window:CreateTab("Auto", "zap")
+
+AutoTab:CreateSection("⚠  Warning")
+AutoTab:CreateLabel("Disable Auto Roll Dice before manually rolling dice — using both at once may cause issues.")
+
+-- ── Auto Roll Dice ────────────────────────────────────────────
+AutoTab:CreateSection("Auto Roll Dice")
+
+AutoTab:CreateInput({
+	Name                    = "Delay  (sec, min 0.03)",
+	PlaceholderText         = "0.2",
+	RemoveTextAfterFocusLost = false,
+	Flag                    = "dice_delay",
+	Callback                = function(v)
+		diceDelay = math.max(0.03, tonumber(v) or 0.2)
+	end,
+})
+
+AutoTab:CreateToggle({
+	Name         = "Auto Roll Dice",
+	CurrentValue = false,
+	Flag         = "dice_toggle",
+	Callback     = function(on)
+		diceOn = on
+		if on then
+			diceTh = task.spawn(function()
+				while diceOn do
+					rRoll:FireServer()
+					task.wait(diceDelay)
+				end
+			end)
+		else
+			if diceTh then task.cancel(diceTh); diceTh = nil end
+		end
+	end,
+})
+
+-- ── Auto Click ────────────────────────────────────────────────
+AutoTab:CreateSection("Auto Click")
+
+AutoTab:CreateInput({
+	Name                    = "Delay  (sec, min 0.03)",
+	PlaceholderText         = "0.05",
+	RemoveTextAfterFocusLost = false,
+	Flag                    = "click_delay",
+	Callback                = function(v)
+		clickDelay = math.max(0.03, tonumber(v) or 0.05)
+	end,
+})
+
+AutoTab:CreateToggle({
+	Name         = "Auto Click",
+	CurrentValue = false,
+	Flag         = "click_toggle",
+	Callback     = function(on)
+		clickOn = on
+		if on then
+			clickTh = task.spawn(function()
+				while clickOn do
+					rClick:FireServer(9)
+					task.wait(clickDelay)
+				end
+			end)
+		else
+			if clickTh then task.cancel(clickTh); clickTh = nil end
+		end
+	end,
+})
+
+-- ── Auto Roll Glyphs ──────────────────────────────────────────
+AutoTab:CreateSection("Auto Roll Glyphs")
+
+AutoTab:CreateInput({
+	Name                    = "Delay  (sec, min 0.03)",
+	PlaceholderText         = "0.05",
+	RemoveTextAfterFocusLost = false,
+	Flag                    = "glyph_delay",
+	Callback                = function(v)
+		glyphDelay = math.max(0.03, tonumber(v) or 0.05)
+	end,
+})
+
+AutoTab:CreateToggle({
+	Name         = "Auto Roll Glyphs",
+	CurrentValue = false,
+	Flag         = "glyph_toggle",
+	Callback     = function(on)
+		glyphOn = on
+		if on then
+			glyphTh = task.spawn(function()
+				while glyphOn do
+					rGlyph:InvokeServer()
+					task.wait(glyphDelay)
+				end
+			end)
+		else
+			if glyphTh then task.cancel(glyphTh); glyphTh = nil end
+		end
+	end,
+})
+
+-- ┌──────────────────────────────────────────────────────────────┐
 -- │  ITEMS TAB                                                   │
 -- └──────────────────────────────────────────────────────────────┘
 local ItemsTab = Window:CreateTab("Items", "package")
+
+-- ── Notice ────────────────────────────────────────────────────
+ItemsTab:CreateSection("⚠  Notice")
+ItemsTab:CreateLabel("Give ∞ Item / Crate only works after having unlocked Essences.")
 
 -- ── Item Selection ────────────────────────────────────────────
 ItemsTab:CreateSection("Item Selection")
@@ -148,7 +256,7 @@ ItemsTab:CreateDropdown({
 ItemsTab:CreateSection("Give Infinite Items")
 
 ItemsTab:CreateButton({
-	Name     = "Give ∞ Items",
+	Name     = "Give ∞ of Selected Item",
 	Info     = "Gives unlimited of the selected item and displays it as inf in your inventory",
 	Callback = function()
 		if not selItem then
@@ -264,8 +372,8 @@ ItemsTab:CreateInput({
 })
 
 ItemsTab:CreateButton({
-	Name     = "Give ∞ Crates",
-	Info     = "Gives unlimited of the selected crate",
+	Name     = "Give ∞ of Selected Crate",
+	Info     = "Gives unlimited of the selected crate and displays it as inf in your inventory",
 	Callback = function()
 		if not selCrate then
 			Rayfield:Notify({ Title = "Error", Content = "Select a crate first!", Duration = 3, Image = 4483362458 })
@@ -285,110 +393,6 @@ ItemsTab:CreateButton({
 		end
 		rOpenCrate:FireServer(selCrate, crateAmt)
 		Rayfield:Notify({ Title = "Done", Content = "Opened " .. crateAmt .. "× " .. selCrate, Duration = 3, Image = 4483362458 })
-	end,
-})
-
--- ┌──────────────────────────────────────────────────────────────┐
--- │  FARM TAB                                                    │
--- └──────────────────────────────────────────────────────────────┘
-local FarmTab = Window:CreateTab("Farm", "zap")
-
-FarmTab:CreateSection("⚠  Warning")
-FarmTab:CreateLabel("Disable Auto Roll Dice before manually rolling dice — using both at once may cause issues.")
-
--- ── Auto Roll Dice ────────────────────────────────────────────
-FarmTab:CreateSection("Auto Roll Dice")
-
-FarmTab:CreateInput({
-	Name                    = "Delay  (sec, min 0.03)",
-	PlaceholderText         = "0.2",
-	RemoveTextAfterFocusLost = false,
-	Flag                    = "dice_delay",
-	Callback                = function(v)
-		diceDelay = math.max(0.03, tonumber(v) or 0.2)
-	end,
-})
-
-FarmTab:CreateToggle({
-	Name         = "Auto Roll Dice",
-	CurrentValue = false,
-	Flag         = "dice_toggle",
-	Callback     = function(on)
-		diceOn = on
-		if on then
-			diceTh = task.spawn(function()
-				while diceOn do
-					rRoll:FireServer()
-					task.wait(diceDelay)
-				end
-			end)
-		else
-			if diceTh then task.cancel(diceTh); diceTh = nil end
-		end
-	end,
-})
-
--- ── Auto Click ────────────────────────────────────────────────
-FarmTab:CreateSection("Auto Click")
-
-FarmTab:CreateInput({
-	Name                    = "Delay  (sec, min 0.03)",
-	PlaceholderText         = "0.05",
-	RemoveTextAfterFocusLost = false,
-	Flag                    = "click_delay",
-	Callback                = function(v)
-		clickDelay = math.max(0.03, tonumber(v) or 0.05)
-	end,
-})
-
-FarmTab:CreateToggle({
-	Name         = "Auto Click",
-	CurrentValue = false,
-	Flag         = "click_toggle",
-	Callback     = function(on)
-		clickOn = on
-		if on then
-			clickTh = task.spawn(function()
-				while clickOn do
-					rClick:FireServer(9)
-					task.wait(clickDelay)
-				end
-			end)
-		else
-			if clickTh then task.cancel(clickTh); clickTh = nil end
-		end
-	end,
-})
-
--- ── Auto Roll Glyphs ──────────────────────────────────────────
-FarmTab:CreateSection("Auto Roll Glyphs")
-
-FarmTab:CreateInput({
-	Name                    = "Delay  (sec, min 0.03)",
-	PlaceholderText         = "0.05",
-	RemoveTextAfterFocusLost = false,
-	Flag                    = "glyph_delay",
-	Callback                = function(v)
-		glyphDelay = math.max(0.03, tonumber(v) or 0.05)
-	end,
-})
-
-FarmTab:CreateToggle({
-	Name         = "Auto Roll Glyphs",
-	CurrentValue = false,
-	Flag         = "glyph_toggle",
-	Callback     = function(on)
-		glyphOn = on
-		if on then
-			glyphTh = task.spawn(function()
-				while glyphOn do
-					rGlyph:InvokeServer()
-					task.wait(glyphDelay)
-				end
-			end)
-		else
-			if glyphTh then task.cancel(glyphTh); glyphTh = nil end
-		end
 	end,
 })
 
