@@ -155,7 +155,7 @@ local Window = Rayfield:CreateWindow({
 		FileName     = "DRIKey",
 		SaveKey      = true,
 		GrabKeyFromSite = false,
-		Key          = { "OsxJ1f2Lu3cPxBk4EwS" },
+		Key          = { "e4gUjySXfDPnLr8eTa3" },
 		KeyLink      = "https://loot-link.com/s?yeifaD0r",
 	},
 })
