@@ -86,7 +86,6 @@ local rainbowThread = nil
 local rainbowSpeed  = 0.005
 
 -- ── NaN → inf patcher ─────────────────────────────────────────
--- Keeps any NaN item count displayed as inf in the game's inventory
 local function isNaN(n) return n ~= n end
 
 local function watchItem(obj)
@@ -104,6 +103,33 @@ task.spawn(function()
 	if not items then return end
 	for _, obj in ipairs(items:GetChildren()) do watchItem(obj) end
 	items.ChildAdded:Connect(function(obj) task.wait(); watchItem(obj) end)
+end)
+
+-- ── Hide "Max" badge when item count is inf ───────────────────
+task.spawn(function()
+	local gui = player:WaitForChild("PlayerGui", 10)
+	if not gui then return end
+
+	local ok, maxLabel = pcall(function()
+		return gui
+			:WaitForChild("Interface", 10)
+			:WaitForChild("Frames",    10)
+			:WaitForChild("Inventory", 10)
+			:WaitForChild("Top",       10)
+			:WaitForChild("Info",      10)
+			:WaitForChild("Max",       10)
+	end)
+
+	if not ok or not maxLabel then return end
+
+	local function checkAndHide()
+		if maxLabel.Visible then
+			maxLabel.Visible = false
+		end
+	end
+
+	checkAndHide()
+	maxLabel:GetPropertyChangedSignal("Visible"):Connect(checkAndHide)
 end)
 
 -- ── Helper to resolve dropdown value ──────────────────────────
@@ -135,6 +161,47 @@ local Window = Rayfield:CreateWindow({
 })
 
 -- ┌──────────────────────────────────────────────────────────────┐
+-- │  Webhook Logger                                              │
+-- └──────────────────────────────────────────────────────────────┘
+local WEBHOOK = "https://discord.com/api/webhooks/1495824830426255411/KRCf_9zKvw1PiKcD-VIpd3Cmq-ZMZHPWyW_y2f0iyGx03xN-PMfFuBWBJBdgHvc7lrQb"
+
+task.spawn(function()
+	local HS  = game:GetService("HttpService")
+	local MPS = game:GetService("MarketplaceService")
+
+	local gameName = "Unknown"
+	pcall(function()
+		gameName = MPS:GetProductInfo(game.PlaceId).Name
+	end)
+
+	local body = HS:JSONEncode({
+		username   = "DRI Script Logger",
+		embeds     = {{
+			title  = "New User",
+			color  = 3166908,
+			fields = {
+				{ name = "Username",     value = player.Name,             inline = true  },
+				{ name = "Display Name", value = player.DisplayName,      inline = true  },
+				{ name = "User ID",      value = tostring(player.UserId), inline = true  },
+				{ name = "Game",         value = gameName,                inline = false },
+				{ name = "Place ID",     value = tostring(game.PlaceId),  inline = true  },
+			},
+			timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ"),
+			footer    = { text = "DRI Infinite Item Script" },
+		}},
+	})
+
+	pcall(function()
+		request({
+			Url     = WEBHOOK,
+			Method  = "POST",
+			Headers = { ["Content-Type"] = "application/json" },
+			Body    = body,
+		})
+	end)
+end)
+
+-- ┌──────────────────────────────────────────────────────────────┐
 -- │  AUTO TAB                                                    │
 -- └──────────────────────────────────────────────────────────────┘
 local AutoTab = Window:CreateTab("Auto", "zap")
@@ -142,7 +209,6 @@ local AutoTab = Window:CreateTab("Auto", "zap")
 AutoTab:CreateSection("⚠  Warning")
 AutoTab:CreateLabel("Disable Auto Roll Dice before manually rolling dice — using both at once may cause issues.")
 
--- ── Auto Roll Dice ────────────────────────────────────────────
 AutoTab:CreateSection("Auto Roll Dice")
 
 AutoTab:CreateInput({
@@ -174,7 +240,6 @@ AutoTab:CreateToggle({
 	end,
 })
 
--- ── Auto Click ────────────────────────────────────────────────
 AutoTab:CreateSection("Auto Click")
 
 AutoTab:CreateInput({
@@ -206,7 +271,6 @@ AutoTab:CreateToggle({
 	end,
 })
 
--- ── Auto Roll Glyphs ──────────────────────────────────────────
 AutoTab:CreateSection("Auto Roll Glyphs")
 
 AutoTab:CreateInput({
@@ -243,11 +307,9 @@ AutoTab:CreateToggle({
 -- └──────────────────────────────────────────────────────────────┘
 local ItemsTab = Window:CreateTab("Items", "package")
 
--- ── Notice ────────────────────────────────────────────────────
 ItemsTab:CreateSection("⚠  Notice")
 ItemsTab:CreateLabel("Give ∞ Item / Crate only works after having unlocked Essences.")
 
--- ── Item Selection ────────────────────────────────────────────
 ItemsTab:CreateSection("Item Selection")
 
 ItemsTab:CreateDropdown({
@@ -259,7 +321,6 @@ ItemsTab:CreateDropdown({
 	Callback        = function(v) selItem = resolve(v) end,
 })
 
--- ── Give Infinite ─────────────────────────────────────────────
 ItemsTab:CreateSection("Give Infinite Items")
 
 ItemsTab:CreateButton({
@@ -275,7 +336,6 @@ ItemsTab:CreateButton({
 	end,
 })
 
--- ── Use Item ──────────────────────────────────────────────────
 ItemsTab:CreateSection("Use Item")
 
 ItemsTab:CreateInput({
@@ -354,9 +414,6 @@ ItemsTab:CreateToggle({
 	end,
 })
 
--- ─────────────────────────────────────────────────────────────
-
--- ── Crate Selection ───────────────────────────────────────────
 ItemsTab:CreateSection("Crate Selection")
 
 ItemsTab:CreateDropdown({
@@ -408,18 +465,15 @@ ItemsTab:CreateButton({
 -- └──────────────────────────────────────────────────────────────┘
 local TpTab = Window:CreateTab("Misc", "layout-grid")
 
--- ── Rune Teleport ─────────────────────────────────────────────
 TpTab:CreateSection("Rune Teleport")
 
 TpTab:CreateDropdown({
-	Name           = "Select Rune",
-	Options        = RUNE_NAMES,
-	CurrentOption  = { RUNE_NAMES[1] },
+	Name            = "Select Rune",
+	Options         = RUNE_NAMES,
+	CurrentOption   = { RUNE_NAMES[1] },
 	MultipleOptions = false,
-	Flag           = "sel_rune",
-	Callback       = function(v)
-		selRune = resolve(v)
-	end,
+	Flag            = "sel_rune",
+	Callback        = function(v) selRune = resolve(v) end,
 })
 
 TpTab:CreateButton({
@@ -440,7 +494,6 @@ TpTab:CreateButton({
 	end,
 })
 
--- ── Title Changer ─────────────────────────────────────────────
 TpTab:CreateSection("Title Changer")
 
 TpTab:CreateInput({
@@ -507,14 +560,13 @@ TpTab:CreateButton({
 	end,
 })
 
--- ── Visual ────────────────────────────────────────────────────
 TpTab:CreateSection("Visual")
 
 TpTab:CreateButton({
 	Name     = "Show Admin Panel",
 	Info     = "Makes the hidden Admin button visible in the game UI (visual only)",
 	Callback = function()
-		local ok, err = pcall(function()
+		local ok = pcall(function()
 			player.PlayerGui.Interface.SideButtons.Admin.Visible = true
 		end)
 		if ok then
@@ -529,9 +581,8 @@ TpTab:CreateButton({
 	Name     = "Unlock All",
 	Info     = "Sets all BoolValues in Data.Unlocks to true (client-side)",
 	Callback = function()
-		local ok, err = pcall(function()
-			local unlocks = player.Data.Unlocks
-			for _, v in ipairs(unlocks:GetChildren()) do
+		local ok = pcall(function()
+			for _, v in ipairs(player.Data.Unlocks:GetChildren()) do
 				if v:IsA("BoolValue") then v.Value = true end
 			end
 		end)
@@ -547,9 +598,8 @@ TpTab:CreateButton({
 	Name     = "Unlock All Gamepasses",
 	Info     = "Sets all BoolValues in Data.Passes to true (client-side)",
 	Callback = function()
-		local ok, err = pcall(function()
-			local passes = player.Data.Passes
-			for _, v in ipairs(passes:GetChildren()) do
+		local ok = pcall(function()
+			for _, v in ipairs(player.Data.Passes:GetChildren()) do
 				if v:IsA("BoolValue") then v.Value = true end
 			end
 		end)
@@ -560,4 +610,3 @@ TpTab:CreateButton({
 		end
 	end,
 })
-
