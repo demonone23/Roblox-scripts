@@ -20,6 +20,7 @@ local rOpenCrate = Rem:WaitForChild("OpenCrate")
 local rRoll      = Rem:WaitForChild("Roll")
 local rClick     = Rem:WaitForChild("Click")
 local rGlyph     = Rem:WaitForChild("RollGlyph")
+local rSetTitle  = Rem:WaitForChild("SetTitle")
 
 -- ── Data ──────────────────────────────────────────────────────
 local ALL_ITEMS = {
@@ -77,6 +78,12 @@ local glyphTh    = nil
 local tpMins     = 5
 local tpOn       = false
 local tpTh       = nil
+
+local titleName     = "Starter"
+local titleColor    = Color3.new(0.792, 1, 0.620)
+local rainbowOn     = false
+local rainbowThread = nil
+local rainbowSpeed  = 0.005
 
 -- ── NaN → inf patcher ─────────────────────────────────────────
 -- Keeps any NaN item count displayed as inf in the game's inventory
@@ -397,9 +404,9 @@ ItemsTab:CreateButton({
 })
 
 -- ┌──────────────────────────────────────────────────────────────┐
--- │  TELEPORT TAB                                                │
+-- │  MISC TAB                                                    │
 -- └──────────────────────────────────────────────────────────────┘
-local TpTab = Window:CreateTab("Teleport", "map-pin")
+local TpTab = Window:CreateTab("Misc", "layout-grid")
 
 -- ── Rune Teleport ─────────────────────────────────────────────
 TpTab:CreateSection("Rune Teleport")
@@ -429,6 +436,127 @@ TpTab:CreateButton({
 		if hrp and pos then
 			hrp.CFrame = CFrame.new(pos)
 			Rayfield:Notify({ Title = "Teleported", Content = "→  " .. selRune, Duration = 2, Image = 4483362458 })
+		end
+	end,
+})
+
+-- ── Title Changer ─────────────────────────────────────────────
+TpTab:CreateSection("Title Changer")
+
+TpTab:CreateInput({
+	Name                     = "Title Name",
+	PlaceholderText          = "Starter",
+	RemoveTextAfterFocusLost = false,
+	Flag                     = "title_name",
+	Callback                 = function(v)
+		if v ~= "" then titleName = v end
+	end,
+})
+
+TpTab:CreateColorPicker({
+	Name     = "Title Color",
+	Color    = Color3.new(0.792, 1, 0.620),
+	Flag     = "title_color",
+	Callback = function(v)
+		titleColor = v
+	end,
+})
+
+TpTab:CreateSlider({
+	Name         = "Rainbow Speed",
+	Info         = "Higher = faster color cycling",
+	Range        = {1, 100},
+	Increment    = 1,
+	Suffix       = "%",
+	CurrentValue = 5,
+	Flag         = "rainbow_speed",
+	Callback     = function(v)
+		rainbowSpeed = v / 1000
+	end,
+})
+
+TpTab:CreateToggle({
+	Name         = "Rainbow Color",
+	Info         = "Cycles through rainbow colors on your title automatically",
+	CurrentValue = false,
+	Flag         = "rainbow_toggle",
+	Callback     = function(on)
+		rainbowOn = on
+		if on then
+			local hue = 0
+			rainbowThread = task.spawn(function()
+				while rainbowOn do
+					hue = (hue + rainbowSpeed) % 1
+					local col = Color3.fromHSV(hue, 1, 1)
+					rSetTitle:FireServer(titleName, col)
+					task.wait(0.1)
+				end
+			end)
+		else
+			if rainbowThread then task.cancel(rainbowThread); rainbowThread = nil end
+		end
+	end,
+})
+
+TpTab:CreateButton({
+	Name     = "Apply Title",
+	Info     = "Sets your title to the name and color above (disable Rainbow first if active)",
+	Callback = function()
+		rSetTitle:FireServer(titleName, titleColor)
+		Rayfield:Notify({ Title = "Done", Content = "Title set to: " .. titleName, Duration = 3, Image = 4483362458 })
+	end,
+})
+
+-- ── Visual ────────────────────────────────────────────────────
+TpTab:CreateSection("Visual")
+
+TpTab:CreateButton({
+	Name     = "Show Admin Panel",
+	Info     = "Makes the hidden Admin button visible in the game UI (visual only)",
+	Callback = function()
+		local ok, err = pcall(function()
+			player.PlayerGui.Interface.SideButtons.Admin.Visible = true
+		end)
+		if ok then
+			Rayfield:Notify({ Title = "Done", Content = "Admin panel is now visible", Duration = 3, Image = 4483362458 })
+		else
+			Rayfield:Notify({ Title = "Error", Content = "Could not find Admin button", Duration = 3, Image = 4483362458 })
+		end
+	end,
+})
+
+TpTab:CreateButton({
+	Name     = "Unlock All",
+	Info     = "Sets all BoolValues in Data.Unlocks to true (client-side)",
+	Callback = function()
+		local ok, err = pcall(function()
+			local unlocks = player.Data.Unlocks
+			for _, v in ipairs(unlocks:GetChildren()) do
+				if v:IsA("BoolValue") then v.Value = true end
+			end
+		end)
+		if ok then
+			Rayfield:Notify({ Title = "Done", Content = "All unlocks set to true", Duration = 3, Image = 4483362458 })
+		else
+			Rayfield:Notify({ Title = "Error", Content = "Could not access Data.Unlocks", Duration = 3, Image = 4483362458 })
+		end
+	end,
+})
+
+TpTab:CreateButton({
+	Name     = "Unlock All Gamepasses",
+	Info     = "Sets all BoolValues in Data.Passes to true (client-side)",
+	Callback = function()
+		local ok, err = pcall(function()
+			local passes = player.Data.Passes
+			for _, v in ipairs(passes:GetChildren()) do
+				if v:IsA("BoolValue") then v.Value = true end
+			end
+		end)
+		if ok then
+			Rayfield:Notify({ Title = "Done", Content = "All gamepasses set to true", Duration = 3, Image = 4483362458 })
+		else
+			Rayfield:Notify({ Title = "Error", Content = "Could not access Data.Passes", Duration = 3, Image = 4483362458 })
 		end
 	end,
 })
