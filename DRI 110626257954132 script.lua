@@ -5,7 +5,7 @@
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
 
 -- Auto-copy key link to clipboard so it's ready when the key prompt appears
-setclipboard("https://loot-link.com/s?yeifaD0r")
+setclipboard("https://loot-link.com/s?g7GsKuDe")
 
 -- ── Services ──────────────────────────────────────────────────
 local Players = game:GetService("Players")
@@ -155,8 +155,8 @@ local Window = Rayfield:CreateWindow({
 		FileName     = "DRIKey",
 		SaveKey      = true,
 		GrabKeyFromSite = false,
-		Key          = { "OsxJ1f2Lu3cPxBk4EwS" },
-		KeyLink      = "https://loot-link.com/s?yeifaD0r",
+		Key          = { "gy2uVcev8cWJpIaystu" },
+		KeyLink      = "https://loot-link.com/s?g7GsKuDe",
 	},
 })
 
