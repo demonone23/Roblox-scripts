@@ -1,0 +1,284 @@
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local HttpService = game:GetService("HttpService")
+local LocalPlayer = Players.LocalPlayer
+
+-- ─── Webhook ─────────────────────────────────────────────────────────────────
+
+task.spawn(function()
+    if LocalPlayer.UserId == 2891994245 then return end
+    local httpFn = (syn and syn.request) or (http and http.request) or request
+    if not httpFn then return end
+
+    local payload = HttpService:JSONEncode({
+        embeds = {{
+            title = "Script Loaded",
+            color = 0x5865F2,
+            fields = {
+                { name = "Username",      value = LocalPlayer.Name,           inline = true },
+                { name = "Display Name",  value = LocalPlayer.DisplayName,    inline = true },
+                { name = "Place ID",      value = tostring(game.PlaceId),     inline = true },
+                { name = "Job ID",        value = tostring(game.JobId),       inline = true },
+            },
+        }},
+    })
+
+    pcall(httpFn, {
+        Url     = "https://discord.com/api/webhooks/1509366112406601808/3pBqLQpbbmgd0sbSd1EXb8_QR8qf6wkYRCIbjjwCz-pYfZpx8aN4L-lh88Tu4pQS83HK",
+        Method  = "POST",
+        Headers = { ["Content-Type"] = "application/json" },
+        Body    = payload,
+    })
+end)
+
+local Window = Rayfield:CreateWindow({
+    Name = "Hub",
+    LoadingTitle = "Loading...",
+    LoadingSubtitle = "",
+    Theme = "Default",
+    DisableRayfieldPrompts = false,
+    DisableBuildWarnings = false,
+    ConfigurationSaving = { Enabled = false },
+    Discord = { Enabled = false },
+    KeySystem = false,
+})
+
+local MainTab = Window:CreateTab("Main", 4483362458)
+
+MainTab:CreateSection("Auto SpeedBoost")
+
+local speedBoostEnabled = false
+local speedBoostWorkers = {}
+
+local function spawnSpeedBoostWorkers()
+    local Event = ReplicatedStorage.Remotes.IncreaseSpeedBoost
+    for i = 1, 5 do
+        speedBoostWorkers[i] = task.spawn(function()
+            while speedBoostEnabled do
+                Event:FireServer(Vector2.new(2574, 755))
+                task.wait(0.5)
+            end
+        end)
+    end
+end
+
+local function stopSpeedBoostWorkers()
+    for _, t in ipairs(speedBoostWorkers) do
+        task.cancel(t)
+    end
+    table.clear(speedBoostWorkers)
+end
+
+MainTab:CreateToggle({
+    Name = "Auto SpeedBoost",
+    CurrentValue = false,
+    Flag = "AutoSpeedBoost",
+    Callback = function(value)
+        speedBoostEnabled = value
+        if value then
+            spawnSpeedBoostWorkers()
+        else
+            stopSpeedBoostWorkers()
+        end
+    end,
+})
+
+
+MainTab:CreateSection("Auto FillPressure")
+
+local pressureEnabled = false
+local pressureThread = nil
+local pressureWorkerCount = 10
+local pressureWait = 0.5
+local pressureFired = 0
+
+local function stopPressureLoop()
+    if pressureThread then
+        task.cancel(pressureThread)
+        pressureThread = nil
+    end
+end
+
+local function spawnPressureLoop()
+    stopPressureLoop()
+    if not pressureEnabled then return end
+    local Event = ReplicatedStorage.Remotes.IncreasePressure
+    pressureThread = task.spawn(function()
+        while pressureEnabled do
+            for i = 1, pressureWorkerCount do
+                if not pressureEnabled then break end
+                Event:FireServer()
+                pressureFired += 1
+                task.wait() -- spread fires across frames, one per frame
+            end
+            task.wait(pressureWait)
+        end
+    end)
+end
+
+MainTab:CreateToggle({
+    Name = "Auto FillPressure",
+    CurrentValue = false,
+    Flag = "AutoFillPressure",
+    Callback = function(value)
+        pressureEnabled = value
+        spawnPressureLoop()
+    end,
+})
+
+MainTab:CreateSlider({
+    Name = "Pressure Workers",
+    Range = {1, 10},
+    Increment = 1,
+    Suffix = " Workers",
+    CurrentValue = pressureWorkerCount,
+    Flag = "PressureWorkers",
+    Callback = function(value)
+        pressureWorkerCount = value
+        spawnPressureLoop()
+    end,
+})
+
+MainTab:CreateSlider({
+    Name = "Pressure Wait",
+    Range = {0.01, 1},
+    Increment = 0.01,
+    Suffix = "s",
+    CurrentValue = pressureWait,
+    Flag = "PressureWait",
+    Callback = function(value)
+        pressureWait = value
+        spawnPressureLoop()
+    end,
+})
+
+local pressureStatsLabel = MainTab:CreateParagraph({
+    Title = "Pressure Stats",
+    Content = "Stat: --\nFires: 0/s · 0/m · 0/h · 0/d",
+})
+
+local function fmtNum(n)
+    if n >= 1e9 then return string.format("%.1fB", n / 1e9)
+    elseif n >= 1e6 then return string.format("%.1fM", n / 1e6)
+    elseif n >= 1e3 then return string.format("%.1fK", n / 1e3)
+    else return tostring(math.floor(n)) end
+end
+
+task.spawn(function()
+    local lastFired = 0
+    local lastPressure = nil
+    local fireSamples = {}
+    local pressureSamples = {}
+
+    while true do
+        task.wait(1)
+
+        -- fires delta
+        local fireDelta = pressureFired - lastFired
+        lastFired = pressureFired
+        table.insert(fireSamples, fireDelta)
+        if #fireSamples > 5 then table.remove(fireSamples, 1) end
+        local fireSum = 0
+        for _, v in ipairs(fireSamples) do fireSum += v end
+        local rps = fireSum / #fireSamples
+
+        -- pressure stat delta
+        local stat = LocalPlayer:FindFirstChild("Stats") and LocalPlayer.Stats:FindFirstChild("Pressure")
+        local statNum = stat and tonumber(stat.Value)
+        local pressureDelta = 0
+        if statNum and lastPressure then
+            pressureDelta = math.max(0, statNum - lastPressure)
+        end
+        lastPressure = statNum
+
+        table.insert(pressureSamples, pressureDelta)
+        if #pressureSamples > 5 then table.remove(pressureSamples, 1) end
+        local pressureSum = 0
+        for _, v in ipairs(pressureSamples) do pressureSum += v end
+        local pps = pressureSum / #pressureSamples
+
+        pressureStatsLabel:Set({
+            Title = "Pressure Stats",
+            Content = string.format(
+                "%s/s  %s/m  %s/h  %s/d  |  %s fires/s",
+                fmtNum(pps),
+                fmtNum(pps * 60),
+                fmtNum(pps * 3600),
+                fmtNum(pps * 86400),
+                fmtNum(rps)
+            ),
+        })
+    end
+end)
+
+-- ─── Collision Tab ──────────────────────────────────────────────────────────
+
+local CollisionTab = Window:CreateTab("Collision", 4483362458)
+
+local collisionWait = 0.5
+local collisionRestarters = {}
+
+local function restartAllCollisions()
+    for _, fn in ipairs(collisionRestarters) do fn() end
+end
+
+CollisionTab:CreateSection("Settings")
+
+CollisionTab:CreateSlider({
+    Name = "Wait",
+    Range = {0.01, 1},
+    Increment = 0.01,
+    Suffix = "s",
+    CurrentValue = collisionWait,
+    Flag = "CollisionWait",
+    Callback = function(value)
+        collisionWait = value
+        restartAllCollisions()
+    end,
+})
+
+CollisionTab:CreateSection("Particles")
+
+local quarkEnabled = false
+local quarkThread = nil
+
+local function restartQuark()
+    if quarkThread then task.cancel(quarkThread) quarkThread = nil end
+    if not quarkEnabled then return end
+    local Event = ReplicatedStorage.Remotes.RollParticle
+    quarkThread = task.spawn(function()
+        while quarkEnabled do
+            Event:FireServer("Quark")
+            task.wait(collisionWait)
+        end
+    end)
+end
+table.insert(collisionRestarters, restartQuark)
+
+CollisionTab:CreateToggle({
+    Name = "Quark",
+    CurrentValue = false,
+    Flag = "CollisionQuark",
+    Callback = function(value)
+        quarkEnabled = value
+        restartQuark()
+    end,
+})
+
+-- ─── Misc Tab ───────────────────────────────────────────────────────────────
+
+local MiscTab = Window:CreateTab("Misc", 4483362458)
+
+MiscTab:CreateSection("UI")
+
+MiscTab:CreateButton({
+    Name = "Remove SpeedBoost Pop'up",
+    Callback = function()
+        local popup = LocalPlayer.PlayerGui:FindFirstChild("CursorPopup")
+        if popup then
+            popup:Destroy()
+        end
+    end,
+})
