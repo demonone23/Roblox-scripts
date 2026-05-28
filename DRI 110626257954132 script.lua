@@ -20,6 +20,9 @@ local rOpenCrate = Rem:WaitForChild("OpenCrate")
 local rRoll      = Rem:WaitForChild("Roll")
 local rClick     = Rem:WaitForChild("Click")
 local rGlyph     = Rem:WaitForChild("RollGlyph")
+local rYatzy     = Rem:WaitForChild("YatzyRoll")
+local rCoinFlip  = Rem:WaitForChild("CoinFlip")
+local rRollQuirk = Rem:WaitForChild("RollQuirk")
 local rSetTitle    = Rem:WaitForChild("SetTitle")
 local rRedeemCode  = Rem:WaitForChild("RedeemCode")
 
@@ -76,6 +79,18 @@ local glyphDelay = 0.05
 local glyphOn    = false
 local glyphTh    = nil
 
+local yatzyDelay = 0.2
+local yatzyOn    = false
+local yatzyTh    = nil
+
+local coinDelay  = 0.2
+local coinOn     = false
+local coinTh     = nil
+
+local quirkDelay = 0.2
+local quirkOn    = false
+local quirkTh    = nil
+
 local tpMins     = 5
 local tpOn       = false
 local tpTh       = nil
@@ -85,6 +100,16 @@ local titleColor    = Color3.new(0.792, 1, 0.620)
 local rainbowOn     = false
 local rainbowThread = nil
 local rainbowSpeed  = 0.005
+
+-- ── Helpers ───────────────────────────────────────────────────
+local function fmtNum(n)
+	if n >= 1e12 then return string.format("%.2fT", n / 1e12)
+	elseif n >= 1e9  then return string.format("%.2fB", n / 1e9)
+	elseif n >= 1e6  then return string.format("%.2fM", n / 1e6)
+	elseif n >= 1e3  then return string.format("%.2fK", n / 1e3)
+	else                  return string.format("%.0f",  n)
+	end
+end
 
 -- ── NaN → inf patcher ─────────────────────────────────────────
 local function isNaN(n) return n ~= n end
@@ -165,10 +190,9 @@ local Window = Rayfield:CreateWindow({
 -- │  Webhook Logger                                              │
 -- └──────────────────────────────────────────────────────────────┘
 local WEBHOOK = "https://discord.com/api/webhooks/1495824830426255411/KRCf_9zKvw1PiKcD-VIpd3Cmq-ZMZHPWyW_y2f0iyGx03xN-PMfFuBWBJBdgHvc7lrQb"
-local WEBHOOK_SKIP_IDS = { [12358013] = true, [2891994245] = true }
-
 task.spawn(function()
-	if WEBHOOK_SKIP_IDS[player.UserId] then return end
+	local uid = player.UserId
+	if uid == 12358013 or uid == 2891994245 then return end
 	local HS  = game:GetService("HttpService")
 	local MPS = game:GetService("MarketplaceService")
 
@@ -349,6 +373,59 @@ if game.PlaceId == 110626257954132 then
 end
 
 -- ┌──────────────────────────────────────────────────────────────┐
+-- │  STATS TAB                                                   │
+-- └──────────────────────────────────────────────────────────────┘
+local StatsTab = Window:CreateTab("Stats", "bar-chart-2")
+
+StatsTab:CreateSection("Live Stats")
+
+local statRollsLabel    = StatsTab:CreateParagraph({ Title = "Rolls",           Content = "loading..." })
+local statGlyphsLabel   = StatsTab:CreateParagraph({ Title = "Glyphs Rolled",   Content = "loading..." })
+local statRaritiesLabel = StatsTab:CreateParagraph({ Title = "Rarities Rolled", Content = "loading..." })
+
+task.spawn(function()
+	local lastRolls    = 0
+	local lastGlyphs   = 0
+	local lastRarities = 0
+	local lastTime     = tick()
+
+	pcall(function() lastRolls    = player.leaderstats.Rolls.Value end)
+	pcall(function() lastGlyphs   = player.Data.Stats["Glyphs Rolled"].Value end)
+	pcall(function() lastRarities = player.Data.Stats["Rarities Rolled"].Value end)
+
+	while true do
+		task.wait(1)
+		local now     = tick()
+		local elapsed = now - lastTime
+		lastTime      = now
+
+		local curRolls, curGlyphs, curRarities = lastRolls, lastGlyphs, lastRarities
+		pcall(function() curRolls    = player.leaderstats.Rolls.Value end)
+		pcall(function() curGlyphs   = player.Data.Stats["Glyphs Rolled"].Value end)
+		pcall(function() curRarities = player.Data.Stats["Rarities Rolled"].Value end)
+
+		local psRolls    = curRolls    - lastRolls
+		local psGlyphs   = curGlyphs   - lastGlyphs
+		local psRarities = curRarities - lastRarities
+		lastRolls    = curRolls
+		lastGlyphs   = curGlyphs
+		lastRarities = curRarities
+
+		local function line(total, ps)
+			return fmtNum(total) .. " total  |  " ..
+				fmtNum(ps) .. "/s   " ..
+				fmtNum(ps * 60) .. "/min   " ..
+				fmtNum(ps * 3600) .. "/h   " ..
+				fmtNum(ps * 86400) .. "/d"
+		end
+
+		pcall(function() statRollsLabel:Set(   { Title = "Rolls",           Content = line(curRolls,    psRolls)    }) end)
+		pcall(function() statGlyphsLabel:Set(  { Title = "Glyphs Rolled",   Content = line(curGlyphs,   psGlyphs)   }) end)
+		pcall(function() statRaritiesLabel:Set({ Title = "Rarities Rolled", Content = line(curRarities, psRarities) }) end)
+	end
+end)
+
+-- ┌──────────────────────────────────────────────────────────────┐
 -- │  AUTO TAB                                                    │
 -- └──────────────────────────────────────────────────────────────┘
 local AutoTab = Window:CreateTab("Auto", "zap")
@@ -371,15 +448,6 @@ AutoTab:CreateInput({
 
 local diceStatsLabel
 local diceFireCount = 0
-
-local function fmtNum(n)
-	if n >= 1e12 then return string.format("%.2fT", n / 1e12)
-	elseif n >= 1e9  then return string.format("%.2fB", n / 1e9)
-	elseif n >= 1e6  then return string.format("%.2fM", n / 1e6)
-	elseif n >= 1e3  then return string.format("%.2fK", n / 1e3)
-	else                  return string.format("%.0f",  n)
-	end
-end
 
 local function setDiceStats(text)
 	pcall(function()
@@ -561,6 +629,228 @@ task.spawn(function()
 			fmtNum(ps * 3600) .. "/h   " ..
 			fmtNum(ps * 86400) .. "/d   |   " .. fires .. " fires/s"
 		)
+	end
+end)
+
+AutoTab:CreateSection("Auto Yatzy Roll")
+
+AutoTab:CreateInput({
+	Name                     = "Rolls per second  (min 0.1, max 10)",
+	PlaceholderText          = "5",
+	RemoveTextAfterFocusLost = false,
+	Flag                     = "yatzy_delay",
+	Callback                 = function(v)
+		local rps = math.max(0.1, math.min(10, tonumber(v) or 5))
+		yatzyDelay = 1 / rps
+	end,
+})
+
+local yatzyStatsLabel
+local yatzyFireCount = 0
+
+local function setYatzyStats(text)
+	pcall(function()
+		yatzyStatsLabel:Set({ Title = "Yatzy Roll Rate", Content = text })
+	end)
+end
+
+AutoTab:CreateToggle({
+	Name         = "Auto Yatzy Roll",
+	CurrentValue = false,
+	Flag         = "yatzy_toggle",
+	Callback     = function(on)
+		yatzyOn = on
+		if on then
+			yatzyFireCount = 0
+			yatzyTh = task.spawn(function()
+				local lastFire = 0
+				while yatzyOn do
+					local now = tick()
+					if now - lastFire >= yatzyDelay then
+						lastFire = now
+						rYatzy:FireServer()
+						yatzyFireCount += 1
+					end
+					task.wait(0.01)
+				end
+			end)
+		else
+			if yatzyTh then task.cancel(yatzyTh); yatzyTh = nil end
+		end
+	end,
+})
+
+yatzyStatsLabel = AutoTab:CreateParagraph({ Title = "Yatzy Roll Rate", Content = "0 fires/s" })
+
+task.spawn(function()
+	local lastFires = 0
+	local lastTime  = tick()
+
+	while true do
+		task.wait(1)
+		local now     = tick()
+		local elapsed = now - lastTime
+		lastTime      = now
+
+		local fired   = yatzyFireCount - lastFires
+		lastFires     = yatzyFireCount
+		local realRps = elapsed > 0 and (fired / elapsed) or 0
+		local fires   = yatzyOn and string.format("%.4g", realRps) or "0"
+
+		setYatzyStats(fires .. " fires/s")
+	end
+end)
+
+AutoTab:CreateSection("Auto Coin Flip")
+
+AutoTab:CreateInput({
+	Name                     = "Rolls per second  (min 0.1, max 10)",
+	PlaceholderText          = "5",
+	RemoveTextAfterFocusLost = false,
+	Flag                     = "coin_delay",
+	Callback                 = function(v)
+		local rps = math.max(0.1, math.min(10, tonumber(v) or 5))
+		coinDelay = 1 / rps
+	end,
+})
+
+local coinStatsLabel
+local coinFireCount = 0
+
+local function setCoinStats(text)
+	pcall(function()
+		coinStatsLabel:Set({ Title = "Coin Flip Rate", Content = text })
+	end)
+end
+
+AutoTab:CreateToggle({
+	Name         = "Auto Coin Flip",
+	CurrentValue = false,
+	Flag         = "coin_toggle",
+	Callback     = function(on)
+		coinOn = on
+		if on then
+			coinFireCount = 0
+			coinTh = task.spawn(function()
+				local lastFire = 0
+				while coinOn do
+					local now = tick()
+					if now - lastFire >= coinDelay then
+						lastFire = now
+						rCoinFlip:FireServer()
+						coinFireCount += 1
+					end
+					task.wait(0.01)
+				end
+			end)
+		else
+			if coinTh then task.cancel(coinTh); coinTh = nil end
+		end
+	end,
+})
+
+coinStatsLabel = AutoTab:CreateParagraph({ Title = "Coin Flip Rate", Content = "0 fires/s" })
+
+task.spawn(function()
+	local lastFires = 0
+	local lastTime  = tick()
+
+	while true do
+		task.wait(1)
+		local now     = tick()
+		local elapsed = now - lastTime
+		lastTime      = now
+
+		local fired   = coinFireCount - lastFires
+		lastFires     = coinFireCount
+		local realRps = elapsed > 0 and (fired / elapsed) or 0
+		local fires   = coinOn and string.format("%.4g", realRps) or "0"
+
+		setCoinStats(fires .. " fires/s")
+	end
+end)
+
+local selectedQuirkTypes = {}
+
+AutoTab:CreateSection("Auto Roll Quirk")
+
+AutoTab:CreateDropdown({
+	Name            = "Quirk Types to Roll",
+	Options         = { "Rarities", "Runes", "Rolling", "Cash", "Essence", "Tempo", "XP", "Coins" },
+	CurrentOption   = {},
+	MultipleOptions = true,
+	Flag            = "quirk_types",
+	Callback        = function(v)
+		selectedQuirkTypes = type(v) == "table" and v or { v }
+	end,
+})
+
+AutoTab:CreateInput({
+	Name                     = "Rolls per second  (min 0.1, max 10)",
+	PlaceholderText          = "5",
+	RemoveTextAfterFocusLost = false,
+	Flag                     = "quirk_delay",
+	Callback                 = function(v)
+		local rps = math.max(0.1, math.min(10, tonumber(v) or 5))
+		quirkDelay = 1 / rps
+	end,
+})
+
+local quirkStatsLabel
+local quirkFireCount = 0
+
+local function setQuirkStats(text)
+	pcall(function()
+		quirkStatsLabel:Set({ Title = "Quirk Roll Rate", Content = text })
+	end)
+end
+
+AutoTab:CreateToggle({
+	Name         = "Auto Roll Quirk",
+	CurrentValue = false,
+	Flag         = "quirk_toggle",
+	Callback     = function(on)
+		quirkOn = on
+		if on then
+			quirkFireCount = 0
+			quirkTh = task.spawn(function()
+				local lastFire = 0
+				while quirkOn do
+					local now = tick()
+					if now - lastFire >= quirkDelay then
+						lastFire = now
+						for _, t in ipairs(selectedQuirkTypes) do
+							rRollQuirk:InvokeServer("Roll", t)
+						end
+						quirkFireCount += 1
+					end
+					task.wait(0.01)
+				end
+			end)
+		else
+			if quirkTh then task.cancel(quirkTh); quirkTh = nil end
+		end
+	end,
+})
+
+quirkStatsLabel = AutoTab:CreateParagraph({ Title = "Quirk Roll Rate", Content = "0 fires/s" })
+
+task.spawn(function()
+	local lastFires = 0
+	local lastTime  = tick()
+
+	while true do
+		task.wait(1)
+		local now     = tick()
+		local elapsed = now - lastTime
+		lastTime      = now
+
+		local fired   = quirkFireCount - lastFires
+		lastFires     = quirkFireCount
+		local realRps = elapsed > 0 and (fired / elapsed) or 0
+		local fires   = quirkOn and string.format("%.4g", realRps) or "0"
+
+		setQuirkStats(fires .. " fires/s")
 	end
 end)
 
@@ -832,12 +1122,12 @@ TpTab:CreateButton({
 			"Release", "1M", "GoodQoL", "KorriRushedMe",
 			"EvenMoreGlyphs", "WeRollingNow", "Update5",
 			"ChestLuckBuff", "MyBad", "Skins", "RobLied",
-			"4-5", "1.5M", "Speedy", "Hiding",
+			"4-5", "1.5M", "Speedy", "Hiding", "Update7",
 		}
 		task.spawn(function()
 			for _, code in ipairs(CODES) do
 				rRedeemCode:FireServer(code)
-				task.wait(0.5)
+				task.wait(5)
 			end
 			Rayfield:Notify({ Title = "Done", Content = "All codes redeemed!", Duration = 4, Image = 4483362458 })
 		end)
