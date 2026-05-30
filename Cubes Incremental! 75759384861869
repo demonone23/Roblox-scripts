@@ -1,0 +1,295 @@
+local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
+
+local Window = Rayfield:CreateWindow({
+    Name = "Cube Collector",
+    LoadingTitle = "Cube Collector",
+    LoadingSubtitle = "",
+    ConfigurationSaving = { Enabled = false },
+    Discord = { Enabled = false },
+    KeySystem = false,
+})
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+
+-- ─── Main Tab ───────────────────────────────────────────────────────────────
+local cubeEvent = ReplicatedStorage
+    .Packages
+    ._Index["sleitnick_knit@1.7.0"]
+    .knit.Services.CubesService.RE.CollectCube
+
+local seenUUIDs = {}
+local collectMethod = "Remote"
+local cubeDelay = 0.5
+
+local function collectAllCubes()
+    local scripted = workspace:FindFirstChild("__Scripted")
+    local cubesFolder = scripted and scripted:FindFirstChild("__ClientCubes")
+    if not cubesFolder then return end
+
+    for _, cube in ipairs(cubesFolder:GetChildren()) do
+        if collectMethod == "Remote" then
+            local uuid = cube:GetAttribute("UUID")
+            if uuid and not seenUUIDs[uuid] then
+                seenUUIDs[uuid] = true
+                cubeEvent:FireServer(uuid)
+            end
+        elseif collectMethod == "Size" then
+            for _, part in ipairs(cube:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.Size = Vector3.new(2048, 2048, 2048)
+                end
+            end
+        end
+
+        task.wait(cubeDelay)
+    end
+end
+
+local MainTab = Window:CreateTab("Main", 4483362458)
+
+local cubeRunning = false
+local cubeThread  = nil
+
+MainTab:CreateSection("Collect Methods")
+
+MainTab:CreateDropdown({
+    Name = "Method",
+    Options = { "Remote", "Size" },
+    CurrentOption = { "Remote" },
+    Flag = "CollectMethod",
+    Callback = function(option)
+        collectMethod = option[1] or option
+    end,
+})
+
+MainTab:CreateSlider({
+    Name = "Delay per Cube (seconds)",
+    Range = { 0.05, 3 },
+    Increment = 0.05,
+    CurrentValue = 0.5,
+    Flag = "CubeDelay",
+    Callback = function(value)
+        cubeDelay = value
+    end,
+})
+
+MainTab:CreateSection("Auto Collect")
+
+MainTab:CreateToggle({
+    Name = "Auto Collect",
+    CurrentValue = false,
+    Flag = "AutoCollect",
+    Callback = function(enabled)
+        cubeRunning = enabled
+        if enabled then
+            cubeThread = task.spawn(function()
+                while cubeRunning do
+                    collectAllCubes()
+                    task.wait()
+                end
+            end)
+        else
+            if cubeThread then
+                task.cancel(cubeThread)
+                cubeThread = nil
+            end
+        end
+    end,
+})
+
+-- ─── Converter ──────────────────────────────────────────────────────────────
+local convertEvent = ReplicatedStorage
+    .Packages
+    ._Index["sleitnick_knit@1.7.0"]
+    .knit.Services.ConverterService.RE.Convert
+
+local convertRunning = false
+local convertThread  = nil
+local convertDelay   = 0.5
+
+MainTab:CreateSection("Converter")
+
+MainTab:CreateSlider({
+    Name = "Convert Delay (seconds)",
+    Range = { 0.05, 5 },
+    Increment = 0.05,
+    CurrentValue = 0.5,
+    Flag = "ConvertDelay",
+    Callback = function(value)
+        convertDelay = value
+    end,
+})
+
+MainTab:CreateToggle({
+    Name = "Auto Convert",
+    CurrentValue = false,
+    Flag = "AutoConvert",
+    Callback = function(enabled)
+        convertRunning = enabled
+        if enabled then
+            convertThread = task.spawn(function()
+                while convertRunning do
+                    convertEvent:FireServer()
+                    task.wait(convertDelay)
+                end
+            end)
+        else
+            if convertThread then
+                task.cancel(convertThread)
+                convertThread = nil
+            end
+        end
+    end,
+})
+
+-- ─── Click Dropper ──────────────────────────────────────────────────────────
+local clickRunning = false
+local clickThread  = nil
+local clickDelay   = 0.05
+
+MainTab:CreateSection("Click Dropper")
+
+MainTab:CreateSlider({
+    Name = "Click Delay (seconds)",
+    Range = { 0.01, 2 },
+    Increment = 0.01,
+    CurrentValue = 0.05,
+    Flag = "ClickDelay",
+    Callback = function(value)
+        clickDelay = value
+    end,
+})
+
+MainTab:CreateToggle({
+    Name = "Auto Click Dropper",
+    CurrentValue = false,
+    Flag = "AutoClick",
+    Callback = function(enabled)
+        clickRunning = enabled
+        if enabled then
+            clickThread = task.spawn(function()
+                while clickRunning do
+                    local cd = workspace:FindFirstChild("Tycoon")
+                        and workspace.Tycoon:FindFirstChild("Droppers")
+                        and workspace.Tycoon.Droppers:FindFirstChild("ClickDropper")
+                        and workspace.Tycoon.Droppers.ClickDropper:FindFirstChild("ActivateButton")
+                        and workspace.Tycoon.Droppers.ClickDropper.ActivateButton:FindFirstChild("ClickDetector")
+                    if cd then
+                        fireclickdetector(cd)
+                    end
+                    task.wait(clickDelay)
+                end
+            end)
+        else
+            if clickThread then
+                task.cancel(clickThread)
+                clickThread = nil
+            end
+        end
+    end,
+})
+
+-- ─── Runes Tab ──────────────────────────────────────────────────────────────
+local runeEvent = ReplicatedStorage
+    .Packages
+    ._Index["sleitnick_knit@1.7.0"]
+    .knit.Services.RunesService.RE.BuyRune
+
+-- Dynamically grab rune names from the buttons folder
+local function getRuneOptions()
+    local scripted = workspace:FindFirstChild("__Scripted")
+    local runesFolder = scripted and scripted:FindFirstChild("__RunesButtons")
+    local options = {}
+    if runesFolder then
+        for _, child in ipairs(runesFolder:GetChildren()) do
+            table.insert(options, child.Name)
+        end
+    end
+    if #options == 0 then
+        options = { "Basic" } -- fallback
+    end
+    return options
+end
+
+local runeOptions = getRuneOptions()
+
+local RunesTab = Window:CreateTab("Runes", 4483362458)
+
+local selectedRune = runeOptions[1]
+local runeWorkers = 5
+local runeWait = 0.01
+local runeRunning = false
+local runeThreads = {}
+
+local function stopRuneWorkers()
+    runeRunning = false
+    for _, t in ipairs(runeThreads) do
+        task.cancel(t)
+    end
+    runeThreads = {}
+end
+
+local function startRuneWorkers()
+    runeRunning = true
+    for i = 1, runeWorkers do
+        runeThreads[i] = task.spawn(function()
+            while runeRunning do
+                runeEvent:FireServer(selectedRune)
+                task.wait(runeWait)
+            end
+        end)
+    end
+end
+
+RunesTab:CreateSection("Rune Buyer")
+
+RunesTab:CreateDropdown({
+    Name = "Select Rune",
+    Options = runeOptions,
+    CurrentOption = { runeOptions[1] },
+    Flag = "SelectedRune",
+    Callback = function(option)
+        selectedRune = option[1] or option
+    end,
+})
+
+RunesTab:CreateSlider({
+    Name = "Workers",
+    Range = { 1, 50 },
+    Increment = 1,
+    CurrentValue = 5,
+    Flag = "RuneWorkers",
+    Callback = function(value)
+        runeWorkers = value
+        -- restart if already running
+        if runeRunning then
+            stopRuneWorkers()
+            startRuneWorkers()
+        end
+    end,
+})
+
+RunesTab:CreateSlider({
+    Name = "Wait (seconds)",
+    Range = { 0.01, 5 },
+    Increment = 0.01,
+    CurrentValue = 0.01,
+    Flag = "RuneWait",
+    Callback = function(value)
+        runeWait = value
+    end,
+})
+
+RunesTab:CreateToggle({
+    Name = "Auto Buy Rune",
+    CurrentValue = false,
+    Flag = "AutoRune",
+    Callback = function(enabled)
+        if enabled then
+            startRuneWorkers()
+        else
+            stopRuneWorkers()
+        end
+    end,
+})
