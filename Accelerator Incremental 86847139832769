@@ -267,6 +267,114 @@ CollisionTab:CreateToggle({
     end,
 })
 
+-- ─── Exploit Tab ────────────────────────────────────────────────────────────
+
+local ExploitTab = Window:CreateTab("Exploit", 4483362458)
+
+ExploitTab:CreateSection("Auto Tokens")
+
+local tokensEnabled = false
+local tokensThread = nil
+
+local function stopTokensLoop()
+    if tokensThread then
+        task.cancel(tokensThread)
+        tokensThread = nil
+    end
+end
+
+local function spawnTokensLoop()
+    stopTokensLoop()
+    if not tokensEnabled then return end
+    local Event = ReplicatedStorage.Remotes.TutorialEvent
+    tokensThread = task.spawn(function()
+        while tokensEnabled do
+            Event:FireServer("Complete")
+            task.wait()
+        end
+    end)
+end
+
+ExploitTab:CreateToggle({
+    Name = "Auto Tokens",
+    CurrentValue = false,
+    Flag = "AutoTokens",
+    Callback = function(value)
+        tokensEnabled = value
+        spawnTokensLoop()
+    end,
+})
+
+ExploitTab:CreateSection("Aura")
+
+local openAuraEnabled = false
+local openAuraThread = nil
+
+local function stopOpenAuraLoop()
+    if openAuraThread then
+        task.cancel(openAuraThread)
+        openAuraThread = nil
+    end
+end
+
+local function spawnOpenAuraLoop()
+    stopOpenAuraLoop()
+    if not openAuraEnabled then return end
+    local BuyEvent = ReplicatedStorage.Remotes.BuyAuraRoll
+    local RollEvent = ReplicatedStorage.Remotes.RollAura
+    openAuraThread = task.spawn(function()
+        while openAuraEnabled do
+            BuyEvent:InvokeServer("LuckyRoll1")
+            RollEvent:InvokeServer(true)
+            task.wait()
+        end
+    end)
+end
+
+ExploitTab:CreateToggle({
+    Name = "Auto Open Aura (Lucky)",
+    CurrentValue = false,
+    Flag = "AutoOpenAura",
+    Callback = function(value)
+        openAuraEnabled = value
+        spawnOpenAuraLoop()
+    end,
+})
+
+local autoRollEnabled = false
+local autoRollThread = nil
+
+local function stopAutoRollLoop()
+    if autoRollThread then
+        task.cancel(autoRollThread)
+        autoRollThread = nil
+    end
+end
+
+local function spawnAutoRollLoop()
+    stopAutoRollLoop()
+    if not autoRollEnabled then return end
+    local BuyEvent = ReplicatedStorage.Remotes.BuyAuraRoll
+    local RollEvent = ReplicatedStorage.Remotes.RollAura
+    autoRollThread = task.spawn(function()
+        while autoRollEnabled do
+            BuyEvent:InvokeServer("Roll1")
+            RollEvent:InvokeServer(true)
+            task.wait()
+        end
+    end)
+end
+
+ExploitTab:CreateToggle({
+    Name = "Auto Roll",
+    CurrentValue = false,
+    Flag = "AutoRoll",
+    Callback = function(value)
+        autoRollEnabled = value
+        spawnAutoRollLoop()
+    end,
+})
+
 -- ─── Misc Tab ───────────────────────────────────────────────────────────────
 
 local MiscTab = Window:CreateTab("Misc", 4483362458)
