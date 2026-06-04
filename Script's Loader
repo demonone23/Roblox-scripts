@@ -2,7 +2,7 @@ local placeScripts = {
     [110626257954132] = "https://gate.sirius.menu/gateway?id=sid_3uf47jwjfd1b",
     [130551215074851] = "https://gate.sirius.menu/gateway?id=sid_t4rdodeo8f6z",
     [127675063398240] = "https://pastefy.app/hv2WRVON/raw",
-    [86847139832769] = "https://pastefy.app/g13HWYSV/raw",
+    [86847139832769] = "https://raw.githubusercontent.com/demonone23/Roblox-scripts/refs/heads/main/Accelerator%20Incremental%2086847139832769",
     [75759384861869] = "https://pastefy.app/YSvBxmRE/raw",
 
 }
