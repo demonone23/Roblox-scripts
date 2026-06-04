@@ -1,38 +1,649 @@
---{
-----------------------------------------------------
--- 🔓 CLEAN MULTI-GAME LOADER (NO WEBHOOK / NO LOGS)
-----------------------------------------------------
+-- OBFUSCATOR STRESS TEST
+-- Tests: strings, numbers, tables, metatables, closures, coroutines,
+--        varargs, OOP, pcall, bit ops, patterns, upvalues, goto, rawget/rawset
 
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
+local PASS, FAIL = 0, 0
+local function check(label, cond)
+	if cond then
+		print("[PASS] " .. label)
+		PASS = PASS + 1
+	else
+		print("[FAIL] " .. label)
+		FAIL = FAIL + 1
+	end
+end
 
-----------------------------------------------------
--- ⚙️ CONFIGURATION
-----------------------------------------------------
+-- ══════════════════════════════════════════════
+-- 1. NUMBER LITERALS
+-- ══════════════════════════════════════════════
+check("hex literal",         0xFF == 255)
+check("hex uppercase",       0XAB == 171)
+check("octal-ish decimal",   010 == 10) -- Lua has no octal; stays decimal
+check("scientific notation", 1e3 == 1000)
+check("negative sci",        1.5e-2 == 0.015)
+check("hex float",           0x1p4 == 16)
+check("large int",           2147483647 > 0)
+check("float precision",     0.1 + 0.2 ~= 0.3) -- intentional float quirk
 
--- Game → script link mapping
-local Scripts = {
-    [95841983169718] = "https://raw.githubusercontent.com/demonone23/Roblox-scripts/refs/heads/main/CoreFactory.lua",  -- Core Factory
-    [123456789]      = "LINK_GAME_2",
-    [987654321]      = "LINK_GAME_3",
-}
+-- ══════════════════════════════════════════════
+-- 2. STRING LITERALS & ESCAPES
+-- ══════════════════════════════════════════════
+local s1 = "hello\tworld\n"
+local s2 = 'it\'s a \"test\"'
+local s3 = "\65\66\67"          -- ABC via decimal escapes
+local s4 = "\x41\x42\x43"      -- ABC via hex escapes
+local s5 = "\u{1F600}"         -- emoji via unicode escape
+local s6 = [[
+multi
+line
+]]
+local s7 = [==[
+nested [[brackets]] ok
+]==]
 
-----------------------------------------------------
--- 🚀 LOAD THE CORRECT SCRIPT
-----------------------------------------------------
+check("tab escape",          s1:sub(6,6) == "\t")
+check("newline escape",      s1:sub(12,12) == "\n")
+check("quote escapes",       s2 == "it's a \"test\"")
+check("decimal escapes",     s3 == "ABC")
+check("hex escapes",         s4 == "ABC")
+check("unicode escape",      #s5 > 0)
+check("long string newline", s6:sub(1,1) == "\n")
+check("nested long string",  s7:find("brackets") ~= nil)
+check("string concat",       "foo" .. "bar" == "foobar")
+check("string repeat",       string.rep("ab", 3) == "ababab")
+check("string len",          #"hello" == 5)
+check("string reverse",      string.reverse("abc") == "cba")
+check("string upper/lower",  ("Hello"):upper() == "HELLO" and ("Hello"):lower() == "hello")
+check("string byte/char",    string.char(72,105) == "Hi" and string.byte("A") == 65)
+check("string sub",          ("abcdef"):sub(2,4) == "bcd")
+check("string format %d",    string.format("%05d", 42) == "00042")
+check("string format %s",    string.format("%-10s|", "x") == "x         |")
+check("string format %q",    string.format("%q", 'a"b') ~= "")
+check("string format %x",    string.format("%x", 255) == "ff")
 
-local link = Scripts[game.PlaceId]
+-- ══════════════════════════════════════════════
+-- 3. TABLE CONSTRUCTORS
+-- ══════════════════════════════════════════════
+local t1 = {1, 2, 3, [10] = "ten", key = "val", ["str key"] = true}
+local t2 = {{{1}}, {{{2}}}}
+local t3 = {a=1; b=2; c=3}       -- semicolons as separators
 
-if link then
-    local success, code = pcall(function()
-        return game:HttpGet(link)
-    end)
+check("array part",          t1[1] == 1 and t1[3] == 3)
+check("explicit index",      t1[10] == "ten")
+check("string key",          t1.key == "val")
+check("quoted key",          t1["str key"] == true)
+check("deep nested table",   t2[1][1][1] == 1 and t2[2][1][1][1] == 2)
+check("semicolon sep",       t3.a == 1 and t3.c == 3)
+check("#table",              #t1 == 3)
 
-    if success then
-        loadstring(code)()
-    else
-        warn("Failed to load script for this game.")
-    end
+-- ══════════════════════════════════════════════
+-- 4. METATABLES & METAMETHODS
+-- ══════════════════════════════════════════════
+local Vec = {}
+Vec.__index = Vec
+Vec.__add = function(a, b) return setmetatable({x=a.x+b.x, y=a.y+b.y}, getmetatable(a)) end
+Vec.__sub = function(a, b) return setmetatable({x=a.x-b.x, y=a.y-b.y}, getmetatable(a)) end
+Vec.__mul = function(a, s) return setmetatable({x=a.x*s, y=a.y*s}, getmetatable(a)) end
+Vec.__eq  = function(a, b) return a.x==b.x and a.y==b.y end
+Vec.__lt  = function(a, b) return (a.x^2+a.y^2) < (b.x^2+b.y^2) end
+Vec.__le  = function(a, b) return (a.x^2+a.y^2) <= (b.x^2+b.y^2) end
+Vec.__tostring = function(v) return "("..v.x..","..v.y..")" end
+Vec.__concat = function(a, b) return tostring(a)..tostring(b) end
+Vec.__len = function(v) return math.sqrt(v.x^2+v.y^2) end
+Vec.__unm = function(v) return setmetatable({x=-v.x, y=-v.y}, getmetatable(v)) end
+Vec.__call = function(v, s) return setmetatable({x=v.x*s, y=v.y*s}, getmetatable(v)) end
+
+function Vec.new(x, y) return setmetatable({x=x, y=y}, Vec) end
+function Vec:dot(other) return self.x*other.x + self.y*other.y end
+function Vec:len() return math.sqrt(self.x^2+self.y^2) end
+
+local v1 = Vec.new(3, 4)
+local v2 = Vec.new(1, 2)
+local v3 = v1 + v2
+local v4 = -v1
+local v5 = v1(2)   -- __call
+
+check("__add",       v3.x == 4 and v3.y == 6)
+check("__sub",       (v1 - v2).x == 2)
+check("__mul",       (v1 * 2).x == 6)
+check("__unm",       v4.x == -3 and v4.y == -4)
+check("__call",      v5.x == 6 and v5.y == 8)
+check("__len",       #v1 == 5)
+check("__eq",        Vec.new(1,2) == Vec.new(1,2))
+check("__lt",        v2 < v1)
+check("__le",        v2 <= v1)
+check("__tostring",  tostring(v1) == "(3,4)")
+check("__index method", v1:dot(v2) == 11)
+check("__newindex", (function()
+	local log = {}
+	local proxy = setmetatable({}, {
+		__newindex = function(t, k, v) log[#log+1] = k; rawset(t, k, v) end,
+		__index = rawget
+	})
+	proxy.a = 1
+	proxy.b = 2
+	return #log == 2 and log[1] == "a"
+end)())
+
+-- ══════════════════════════════════════════════
+-- 5. CLOSURES & UPVALUES
+-- ══════════════════════════════════════════════
+local function makeCounter(start, step)
+	local n = start
+	return {
+		inc = function() n = n + step; return n end,
+		dec = function() n = n - step; return n end,
+		get = function() return n end,
+		reset = function() n = start end,
+	}
+end
+
+local c = makeCounter(10, 3)
+check("closure upvalue inc", c.inc() == 13)
+check("closure upvalue inc2",c.inc() == 16)
+check("closure upvalue dec", c.dec() == 13)
+check("closure reset",       (function() c.reset(); return c.get() end)() == 10)
+
+local function adder(x)
+	return function(y)
+		return function(z)
+			return x + y + z
+		end
+	end
+end
+check("triple closure",  adder(1)(2)(3) == 6)
+
+-- shared upvalue
+local function sharedUp()
+	local x = 0
+	local function a() x = x + 1 end
+	local function b() x = x + 10 end
+	local function g() return x end
+	return a, b, g
+end
+local ua, ub, ug = sharedUp()
+ua(); ua(); ub()
+check("shared upvalue",  ug() == 12)
+
+-- ══════════════════════════════════════════════
+-- 6. VARARGS
+-- ══════════════════════════════════════════════
+local function sum(...)
+	local args = {...}
+	local n = select("#", ...)
+	local s = 0
+	for i = 1, n do s = s + args[i] end
+	return s
+end
+
+local function passThrough(...)
+	return ...
+end
+
+local function countArgs(...)
+	return select("#", ...)
+end
+
+local function tablepack(...)
+	return table.pack(...)
+end
+
+check("vararg sum",        sum(1,2,3,4,5) == 15)
+check("vararg passthrough",(function() local a,b,c = passThrough(7,8,9); return a+b+c end)() == 24)
+check("select # with nil", countArgs(1, nil, 3) == 3)
+check("table.pack n",      tablepack(10,20,30).n == 3)
+
+local function firstLast(...)
+	local t = {...}
+	return t[1], t[#t]
+end
+local fa, fb = firstLast(5,6,7,8)
+check("first/last vararg", fa == 5 and fb == 8)
+
+-- ══════════════════════════════════════════════
+-- 7. MULTIPLE RETURN VALUES
+-- ══════════════════════════════════════════════
+local function multiret()
+	return 1, "two", true, nil, 5
+end
+
+local a, b, c, d, e = multiret()
+check("multi return 1",  a == 1)
+check("multi return 2",  b == "two")
+check("multi return 3",  c == true)
+check("multi return 4",  d == nil)
+check("multi return 5",  e == 5)
+
+-- truncation in middle of expr
+local t = {multiret(), 99}
+check("multi truncate",  t[2] == 99 and #t == 2)
+
+-- expansion at tail
+local t2 = {10, multiret()}
+check("multi expand tail", t2[6] == 5 and t2[1] == 10)
+
+-- ══════════════════════════════════════════════
+-- 8. COROUTINES
+-- ══════════════════════════════════════════════
+local co = coroutine.create(function(a, b)
+	local sum = a + b
+	local c = coroutine.yield(sum)
+	coroutine.yield(c * 2)
+	return "done"
+end)
+
+local ok1, v1c = coroutine.resume(co, 3, 4)
+local ok2, v2c = coroutine.resume(co, 10)
+local ok3, v3c = coroutine.resume(co)
+local ok4, v4c = coroutine.resume(co)  -- dead
+
+check("coroutine yield 1",   ok1 and v1c == 7)
+check("coroutine yield 2",   ok2 and v2c == 20)
+check("coroutine return",    ok3 and v3c == "done")
+check("coroutine dead",      not ok4)
+check("coroutine status",    coroutine.status(co) == "dead")
+
+local gen = coroutine.wrap(function()
+	for i = 1, 5 do coroutine.yield(i) end
+end)
+local gsum = 0
+for i = 1, 5 do gsum = gsum + gen() end
+check("coroutine wrap sum",  gsum == 15)
+
+-- producer/consumer via coroutine
+local function producer(items)
+	return coroutine.wrap(function()
+		for _, v in ipairs(items) do
+			coroutine.yield(v)
+		end
+	end)
+end
+local collected = {}
+for v in producer({10,20,30,40}) do collected[#collected+1] = v end
+check("coroutine iterator", #collected == 4 and collected[3] == 30)
+
+-- ══════════════════════════════════════════════
+-- 9. PCALL / XPCALL / ERROR OBJECTS
+-- ══════════════════════════════════════════════
+local ok, err = pcall(function() error("oops") end)
+check("pcall catches string error", not ok and err:find("oops"))
+
+local ok2, err2 = pcall(function() error({code=42}) end)
+check("pcall catches table error",  not ok2 and type(err2) == "table" and err2.code == 42)
+
+local ok3, val3 = pcall(function() return 123 end)
+check("pcall success value",  ok3 and val3 == 123)
+
+local function msgh(e) return "HANDLED: " .. tostring(e) end
+local ok4, msg4 = xpcall(function() error("boom") end, msgh)
+check("xpcall message handler", not ok4 and msg4:sub(1,8) == "HANDLED:")
+
+local ok5, r5 = pcall(function()
+	local ok6, r6 = pcall(function() error("inner") end)
+	check("nested pcall inner", not ok6)
+	return "outer ok"
+end)
+check("nested pcall outer", ok5 and r5 == "outer ok")
+
+-- ══════════════════════════════════════════════
+-- 10. CONTROL FLOW
+-- ══════════════════════════════════════════════
+-- Numeric for with float step
+local fsum = 0
+for i = 0, 1, 0.25 do fsum = fsum + i end
+check("float step for", math.abs(fsum - 2.5) < 1e-9)
+
+-- Generic for with next
+local tbl = {a=1,b=2,c=3}
+local ksum = 0
+for k, v in next, tbl do ksum = ksum + v end
+check("generic for next", ksum == 6)
+
+-- repeat-until with upvalue visibility
+local ru = 0
+repeat
+	ru = ru + 1
+until ru >= 5
+check("repeat-until", ru == 5)
+
+-- while with break
+local wb = 0
+while true do
+	wb = wb + 1
+	if wb == 7 then break end
+end
+check("while break", wb == 7)
+
+-- nested break
+local nbr = 0
+for i = 1, 10 do
+	for j = 1, 10 do
+		nbr = nbr + 1
+		if j == 3 then break end
+	end
+	if i == 2 then break end
+end
+check("nested break", nbr == 6)
+
+-- goto
+do
+	local g = 0
+	::top::
+	g = g + 1
+	if g < 5 then goto top end
+	check("goto loop", g == 5)
+end
+
+-- ternary-style and/or
+local tern = (true and "yes" or "no")
+check("and/or ternary", tern == "yes")
+
+-- ══════════════════════════════════════════════
+-- 11. MATH LIBRARY
+-- ══════════════════════════════════════════════
+check("math.floor",    math.floor(3.9) == 3)
+check("math.ceil",     math.ceil(3.1)  == 4)
+check("math.abs",      math.abs(-7)    == 7)
+check("math.max",      math.max(1,5,3) == 5)
+check("math.min",      math.min(1,5,3) == 1)
+check("math.sqrt",     math.sqrt(144)  == 12)
+check("math.pow alt",  2^10 == 1024)
+check("math.sin",      math.abs(math.sin(math.pi)) < 1e-10)
+check("math.cos",      math.abs(math.cos(0) - 1) < 1e-10)
+check("math.log",      math.abs(math.log(math.exp(1)) - 1) < 1e-10)
+check("math.log base", math.abs(math.log(8, 2) - 3) < 1e-10)
+check("math.huge",     math.huge > 1e308)
+check("math.pi",       math.abs(math.pi - 3.14159265) < 1e-7)
+check("math.type int", math.type(1) == "integer")
+check("math.type flt", math.type(1.0) == "float")
+check("math.tointeger", math.tointeger(5.0) == 5)
+check("integer div",   7 // 2 == 3)
+check("modulo",        7 % 3 == 1)
+check("neg modulo",    -7 % 3 == 2)  -- Lua modulo sign follows divisor
+
+-- ══════════════════════════════════════════════
+-- 12. STRING PATTERNS
+-- ══════════════════════════════════════════════
+local function findall(s, p)
+	local res = {}
+	for m in s:gmatch(p) do res[#res+1] = m end
+	return res
+end
+
+check("find literal",       ("hello world"):find("world") == 7)
+check("find pattern",       ("abc123"):find("%d+") == 4)
+check("match capture",      ("2026-06-04"):match("(%d+)-(%d+)-(%d+)") == "2026")
+check("gsub basic",         ("aabbcc"):gsub("b","x") == "aaxxcc")
+check("gsub count",         (function() local s,n = ("aaa"):gsub("a","b"); return n end)() == 3)
+check("gsub func",          ("hello"):gsub("(%w+)", string.upper) == "HELLO")
+check("gmatch words",       #findall("one two three", "%a+") == 3)
+check("gmatch captures",    (function()
+	local t = {}
+	for k,v in ("a=1,b=2,c=3"):gmatch("(%a)=(%d)") do t[k]=tonumber(v) end
+	return t.a==1 and t.b==2 and t.c==3
+end)())
+check("pattern anchors",    ("hello"):match("^h(.-)o$") == "ell")
+check("pattern classes",    ("a1 B2"):match("[%u%d]+") == "B2" or ("a1 B2"):find("[%u]") ~= nil)
+check("frontier pattern",   ("THE END"):find("%f[%l]") == nil) -- no lowercase boundary
+check("balanced match",     ("(a(b)c)"):match("%b()") == "(a(b)c)")
+
+-- ══════════════════════════════════════════════
+-- 13. TABLE LIBRARY
+-- ══════════════════════════════════════════════
+local arr = {5, 3, 1, 4, 2}
+table.sort(arr)
+check("table.sort",         arr[1]==1 and arr[5]==5)
+
+table.sort(arr, function(a,b) return a>b end)
+check("table.sort custom",  arr[1]==5 and arr[5]==1)
+
+local ins = {1,2,3}
+table.insert(ins, 4)
+table.insert(ins, 2, 99)
+check("table.insert end",   ins[4] == 3 and ins[5] == 4)
+check("table.insert mid",   ins[2] == 99)
+
+table.remove(ins, 2)
+check("table.remove mid",   ins[2] == 2)
+table.remove(ins)
+check("table.remove end",   ins[#ins] == 3)
+
+check("table.concat",       table.concat({1,2,3}, "-") == "1-2-3")
+check("table.concat range", table.concat({1,2,3,4}, ",", 2, 3) == "2,3")
+
+local moved = {1,2,3,4,5}
+table.move(moved, 1, 3, 3)
+check("table.move",         moved[3]==1 and moved[4]==2 and moved[5]==3)
+
+check("table.unpack",       (function() return table.unpack({10,20,30}) end)() == 10)
+
+-- ══════════════════════════════════════════════
+-- 14. BIT OPERATIONS (Lua 5.3+ integer bitwise)
+-- ══════════════════════════════════════════════
+check("bit AND",    (0xFF & 0x0F) == 0x0F)
+check("bit OR",     (0xF0 | 0x0F) == 0xFF)
+check("bit XOR",    (0xFF ~ 0x0F) == 0xF0)
+check("bit NOT",    (~0) == -1)
+check("bit lshift", (1 << 8) == 256)
+check("bit rshift", (256 >> 4) == 16)
+check("bit combo",  ((0xAB & 0xF0) >> 4) == 0xA)
+
+-- ══════════════════════════════════════════════
+-- 15. OOP: INHERITANCE
+-- ══════════════════════════════════════════════
+local Animal = {}
+Animal.__index = Animal
+function Animal.new(name, sound)
+	return setmetatable({name=name, sound=sound, hp=100}, Animal)
+end
+function Animal:speak() return self.name .. " says " .. self.sound end
+function Animal:damage(n) self.hp = self.hp - n end
+function Animal:alive() return self.hp > 0 end
+
+local Dog = setmetatable({}, {__index = Animal})
+Dog.__index = Dog
+function Dog.new(name)
+	local self = Animal.new(name, "Woof")
+	return setmetatable(self, Dog)
+end
+function Dog:fetch(item) return self.name .. " fetches " .. item end
+
+local GoldenRetriever = setmetatable({}, {__index = Dog})
+GoldenRetriever.__index = GoldenRetriever
+function GoldenRetriever.new(name)
+	local self = Dog.new(name)
+	return setmetatable(self, GoldenRetriever)
+end
+function GoldenRetriever:describe() return "Golden: " .. self.name end
+
+local d = Dog.new("Rex")
+local g = GoldenRetriever.new("Buddy")
+d:damage(30)
+
+check("OOP speak",        d:speak() == "Rex says Woof")
+check("OOP fetch",        d:fetch("ball") == "Rex fetches ball")
+check("OOP damage",       d.hp == 70)
+check("OOP alive",        d:alive())
+check("OOP 3-level speak",g:speak() == "Buddy says Woof")
+check("OOP 3-level desc", g:describe() == "Golden: Buddy")
+check("instanceof-ish",   getmetatable(g) == GoldenRetriever)
+
+-- ══════════════════════════════════════════════
+-- 16. RECURSION
+-- ══════════════════════════════════════════════
+local function fib(n)
+	if n <= 1 then return n end
+	return fib(n-1) + fib(n-2)
+end
+check("fibonacci",  fib(10) == 55)
+
+local function fact(n)
+	return n <= 1 and 1 or n * fact(n-1)
+end
+check("factorial",  fact(10) == 3628800)
+
+-- mutual recursion
+local isEven, isOdd
+isEven = function(n) return n == 0 or isOdd(n-1) end
+isOdd  = function(n) return n ~= 0 and isEven(n-1) end
+check("mutual recursion even", isEven(100))
+check("mutual recursion odd",  isOdd(99))
+
+-- memoized
+local memo = {}
+local function mfib(n)
+	if memo[n] then return memo[n] end
+	if n <= 1 then memo[n] = n; return n end
+	memo[n] = mfib(n-1) + mfib(n-2)
+	return memo[n]
+end
+check("memoized fib(30)", mfib(30) == 832040)
+
+-- ══════════════════════════════════════════════
+-- 17. ENVIRONMENT & RAWGET/RAWSET
+-- ══════════════════════════════════════════════
+local base = {x = 10}
+local derived = setmetatable({}, {__index = base})
+check("rawget misses meta",  rawget(derived, "x") == nil)
+check("normal get hits meta",derived.x == 10)
+
+rawset(derived, "x", 99)
+check("rawset bypasses __newindex", rawget(derived, "x") == 99)
+
+-- __index as function
+local magic = setmetatable({}, {
+	__index = function(t, k)
+		return k:upper()
+	end
+})
+check("__index function", magic.hello == "HELLO" and magic.world == "WORLD")
+
+-- ══════════════════════════════════════════════
+-- 18. TYPE COERCIONS & EDGE CASES
+-- ══════════════════════════════════════════════
+check("tonumber dec",   tonumber("42") == 42)
+check("tonumber hex",   tonumber("0xFF") == 255)
+check("tonumber base",  tonumber("ff", 16) == 255)
+check("tonumber float", tonumber("3.14") == 3.14)
+check("tonumber fail",  tonumber("abc") == nil)
+check("tostring num",   tostring(255) == "255")
+check("tostring bool",  tostring(true) == "true")
+check("tostring nil",   tostring(nil) == "nil")
+
+-- string-to-number arithmetic
+check("implicit coerce +", "10" + 5 == 15)
+check("implicit coerce *", "3" * "4" == 12)
+check("concat number",     1 .. 2 == "12")
+
+check("type function",  type(function()end) == "function")
+check("type table",     type({}) == "table")
+check("type thread",    type(coroutine.create(function()end)) == "thread")
+
+-- ══════════════════════════════════════════════
+-- 19. COMPLEX EXPRESSIONS
+-- ══════════════════════════════════════════════
+-- operator precedence
+check("precedence 1", 2+3*4 == 14)
+check("precedence 2", 2^3^2 == 512)  -- right-associative: 2^(3^2) = 2^9
+check("precedence 3", -2^2 == -4)    -- -(2^2) not (-2)^2
+check("precedence 4", not 1==1)      -- (not 1)==1 → false==1
+
+-- short circuit
+local sc1 = false and error("should not run") or "ok"
+check("short circuit and", sc1 == "ok")
+local sc2 = true or error("should not run")
+check("short circuit or",  sc2 == true)
+
+-- chained comparisons are NOT chained in Lua; (a < b) returns bool
+check("comparison result", (3 < 5) == true)
+
+-- ══════════════════════════════════════════════
+-- 20. WEAK TABLES
+-- ══════════════════════════════════════════════
+do
+	local weak = setmetatable({}, {__mode = "v"})
+	local obj  = {data = "test"}
+	weak[1]    = obj
+	check("weak table value alive", weak[1] ~= nil)
+	-- Note: can't force GC reliably in test, just verify structure works
+	check("weak table mode", getmetatable(weak).__mode == "v")
+end
+
+-- ══════════════════════════════════════════════
+-- 21. FUNCTION ENVIRONMENTS & LOAD
+-- ══════════════════════════════════════════════
+local chunk = load("return 1 + 1")
+check("load basic", chunk and chunk() == 2)
+
+local dynfn = load("local x = ...; return x * x")
+check("load vararg", dynfn and dynfn(7) == 49)
+
+local badchunk, berr = load("this is not valid lua @@##")
+check("load error returns nil+msg", badchunk == nil and type(berr) == "string")
+
+-- loadstring is an alias in some environments
+if loadstring then
+	check("loadstring alias", loadstring("return 42")() == 42)
+end
+
+-- ══════════════════════════════════════════════
+-- 22. ITERATORS (custom stateful & stateless)
+-- ══════════════════════════════════════════════
+-- stateless
+local function range(n)
+	return function(_, i)
+		i = i + 1
+		if i <= n then return i end
+	end, nil, 0
+end
+
+local rsum = 0
+for i in range(10) do rsum = rsum + i end
+check("custom stateless iter", rsum == 55)
+
+-- stateful closure iterator
+local function fibiter(max)
+	local a, b = 0, 1
+	return function()
+		if a > max then return nil end
+		local v = a
+		a, b = b, a+b
+		return v
+	end
+end
+
+local fibs = {}
+for v in fibiter(20) do fibs[#fibs+1] = v end
+check("fibonacci iterator", fibs[7] == 8 and fibs[8] == 13)
+
+-- ipairs stops at nil
+local sparse = {1, 2, nil, 4}
+local icount = 0
+for _ in ipairs(sparse) do icount = icount + 1 end
+check("ipairs stops at nil", icount == 2)
+
+-- pairs sees all
+local allcount = 0
+for _ in pairs(sparse) do allcount = allcount + 1 end
+check("pairs sees all including 4", allcount == 3)
+
+-- ══════════════════════════════════════════════
+-- 23. STRING.FORMAT EDGE CASES
+-- ══════════════════════════════════════════════
+check("format %%",    string.format("100%%") == "100%")
+check("format %e",    string.format("%e", 314159.0):find("e") ~= nil)
+check("format %g",    string.format("%g", 100.0) == "100")
+check("format %i",    string.format("%i", -42) == "-42")
+check("format width", string.format("%10.3f", 3.14159):find("3.142") ~= nil)
+
+-- ══════════════════════════════════════════════
+-- FINAL RESULTS
+-- ══════════════════════════════════════════════
+print("\n" .. string.rep("═", 40))
+print(string.format("  RESULTS: %d passed, %d failed", PASS, FAIL))
+print(string.rep("═", 40))
+if FAIL == 0 then
+	print("  ALL TESTS PASSED - obfuscator is solid!")
 else
-    warn("No script assigned for PlaceId: " .. tostring(game.PlaceId))
+	print("  SOME TESTS FAILED - obfuscator has issues!")
 end
