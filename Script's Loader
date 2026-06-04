@@ -13,8 +13,8 @@ local LocalPlayer = Players.LocalPlayer
 -- Game → script link mapping
 local Scripts = {
     [95841983169718]    = "https://raw.githubusercontent.com/demonone23/Roblox-scripts/refs/heads/main/CoreFactory.lua",  -- Core Factory
-    [110626257954132]   = "loadstring(game:HttpGet('https://gate.sirius.menu/gateway?id=sid_3uf47jwjfd1b'))()",--- dri
-    [130551215074851]   = "loadstring(game:HttpGet('https://gate.sirius.menu/gateway?id=sid_t4rdodeo8f6z'))()",
+    [110626257954132]   = "https://gate.sirius.menu/gateway?id=sid_3uf47jwjfd1b",--- dri
+    [130551215074851]   = "https://gate.sirius.menu/gateway?id=sid_t4rdodeo8f6z",
 }
 
 ----------------------------------------------------
