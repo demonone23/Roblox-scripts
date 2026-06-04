@@ -5,33 +5,6 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local HttpService = game:GetService("HttpService")
 local LocalPlayer = Players.LocalPlayer
 
--- ─── Webhook ─────────────────────────────────────────────────────────────────
-
-task.spawn(function()
-    if LocalPlayer.UserId == 2891994245 then return end
-    local httpFn = (syn and syn.request) or (http and http.request) or request
-    if not httpFn then return end
-
-    local payload = HttpService:JSONEncode({
-        embeds = {{
-            title = "Script Loaded",
-            color = 0x5865F2,
-            fields = {
-                { name = "Username",      value = LocalPlayer.Name,           inline = true },
-                { name = "Display Name",  value = LocalPlayer.DisplayName,    inline = true },
-                { name = "Place ID",      value = tostring(game.PlaceId),     inline = true },
-                { name = "Job ID",        value = tostring(game.JobId),       inline = true },
-            },
-        }},
-    })
-
-    pcall(httpFn, {
-        Url     = "https://discord.com/api/webhooks/1509366112406601808/3pBqLQpbbmgd0sbSd1EXb8_QR8qf6wkYRCIbjjwCz-pYfZpx8aN4L-lh88Tu4pQS83HK",
-        Method  = "POST",
-        Headers = { ["Content-Type"] = "application/json" },
-        Body    = payload,
-    })
-end)
 
 local Window = Rayfield:CreateWindow({
     Name = "Hub",
