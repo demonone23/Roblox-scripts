@@ -1,4 +1,4 @@
--- Place ID Script Loader
+"-- Place ID Script Loader
 -- Maps place IDs to remote script URLs, fetches and executes them.
 -- Requirements: HTTP Requests enabled, LoadStringEnabled = true in ServerScriptService
 
@@ -9,10 +9,35 @@ local placeScripts = {
 
 local defaultScript = nil -- set to a URL string to use as fallback, or leave nil
 
-local function loadFromUrl(url)
+local function fetchUrl(url)
+    -- use executor's request() if available (supports custom headers)
+    if request then
+        local res = request({
+            Url = url,
+            Method = "GET",
+            Headers = {
+                ["User-Agent"] = "Mozilla/5.0",
+                ["Accept"] = "text/plain",
+            },
+        })
+        if res and res.StatusCode == 200 then
+            return true, res.Body
+        end
+        return false, "HTTP error " .. tostring(res and res.StatusCode or "unknown")
+    end
+
+    -- fallback: game:HttpGet (no custom headers)
     local ok, body = pcall(game.HttpGet, game, url)
     if not ok or not body or body == "" then
         return false, "HTTP fetch failed: " .. tostring(body)
+    end
+    return true, body
+end
+
+local function loadFromUrl(url)
+    local ok, body = fetchUrl(url)
+    if not ok then
+        return false, body
     end
 
     local fn, compileErr = loadstring(body)
@@ -39,3 +64,4 @@ if url then
 else
     warn(("[PlaceLoader] No script configured for place %d"):format(placeId))
 end
+"
