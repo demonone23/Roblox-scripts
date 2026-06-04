@@ -3,8 +3,7 @@
 -- Requirements: HTTP Requests enabled, LoadStringEnabled = true in ServerScriptService
 
 local placeScripts = {
-    -- [PlaceId] = "https://raw.githubusercontent.com/demonone23/Roblox-scripts/refs/heads/main/CoreFactory.lua",
-    [110626257954132] = "https://gate.sirius.menu/gateway?id=sid_3uf47jwjfd1b%22",
+    [110626257954132] = "https://gate.sirius.menu/gateway?id=sid_3uf47jwjfd1b",
     [130551215074851] = "https://gate.sirius.menu/gateway?id=sid_t4rdodeo8f6z",
 }
 
