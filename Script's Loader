@@ -1,38 +1,42 @@
---{
-----------------------------------------------------
--- 🔓 CLEAN MULTI-GAME LOADER (NO WEBHOOK / NO LOGS)
-----------------------------------------------------
+-- Place ID Script Loader
+-- Maps place IDs to remote script URLs, fetches and executes them.
+-- Requirements: HTTP Requests enabled, LoadStringEnabled = true in ServerScriptService
 
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-
-----------------------------------------------------
--- ⚙️ CONFIGURATION
-----------------------------------------------------
-
--- Game → script link mapping
-local Scripts = {
-    [95841983169718]    = "https://raw.githubusercontent.com/demonone23/Roblox-scripts/refs/heads/main/CoreFactory.lua",  -- Core Factory
-    [110626257954132]   = "https://gate.sirius.menu/gateway?id=sid_3uf47jwjfd1b",--- dri
-    [130551215074851]   = "https://gate.sirius.menu/gateway?id=sid_t4rdodeo8f6z",
+local placeScripts = {
+    -- [PlaceId] = "https://raw.githubusercontent.com/demonone23/Roblox-scripts/refs/heads/main/CoreFactory.lua",
+    [110626257954132] = "https://gate.sirius.menu/gateway?id=sid_3uf47jwjfd1b%22",
+    [130551215074851] = "https://gate.sirius.menu/gateway?id=sid_t4rdodeo8f6z",
 }
 
-----------------------------------------------------
--- 🚀 LOAD THE CORRECT SCRIPT
-----------------------------------------------------
+local defaultScript = nil -- set to a URL string to use as fallback, or leave nil
 
-local link = Scripts[game.PlaceId]
+local function loadFromUrl(url)
+    local ok, body = pcall(game.HttpGet, game, url)
+    if not ok or not body or body == "" then
+        return false, "HTTP fetch failed: " .. tostring(body)
+    end
 
-if link then
-    local success, code = pcall(function()
-        return game:HttpGet(link)
-    end)
+    local fn, compileErr = loadstring(body)
+    if not fn then
+        return false, "Compile error: " .. tostring(compileErr)
+    end
 
-    if success then
-        loadstring(code)()
-    else
-        warn("Failed to load script for this game.")
+    local runOk, runErr = pcall(fn)
+    if not runOk then
+        return false, "Runtime error: " .. tostring(runErr)
+    end
+
+    return true, nil
+end
+
+local placeId = game.PlaceId
+local url = placeScripts[placeId] or defaultScript
+
+if url then
+    local success, err = loadFromUrl(url)
+    if not success then
+        warn(("[PlaceLoader] Place %d — %s"):format(placeId, err))
     end
 else
-    warn("No script assigned for PlaceId: " .. tostring(game.PlaceId))
+    warn(("[PlaceLoader] No script configured for place %d"):format(placeId))
 end
