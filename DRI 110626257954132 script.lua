@@ -4,8 +4,6 @@
 -- ── Rayfield ──────────────────────────────────────────────────
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
 
--- Auto-copy key link to clipboard so it's ready when the key prompt appears
-setclipboard("https://loot-link.com/s?yeifaD0r")
 
 -- ── Services ──────────────────────────────────────────────────
 local Players = game:GetService("Players")
@@ -167,23 +165,8 @@ end
 -- │  Window                                                      │
 -- └──────────────────────────────────────────────────────────────┘
 local Window = Rayfield:CreateWindow({
-	Name             = "DRI Infinite Item Script",
-	LoadingTitle     = "DRI Script",
-	LoadingSubtitle  = "Loading, please wait...",
-	ConfigurationSaving = { Enabled = false },
-	Discord          = { Enabled = false },
-
-	KeySystem        = true,
-	KeySettings      = {
-		Title        = "DRI Key System",
-		Subtitle     = "Get your key via Lootlabs",
-		Note         = "Key link auto-copied to clipboard! Paste it in your browser to get the key.",
-		FileName     = "DRIKey",
-		SaveKey      = true,
-		GrabKeyFromSite = false,
-		Key          = { "OsxJ1f2Lu3cPxBk4EwS" },
-		KeyLink      = "https://loot-link.com/s?yeifaD0r",
-	},
+	Name     = "DRI",
+	ScriptID = "sid_3uf47jwjfd1b",
 })
 
 -- ┌──────────────────────────────────────────────────────────────┐
@@ -1182,5 +1165,77 @@ TpTab:CreateButton({
 		else
 			Rayfield:Notify({ Title = "Error", Content = "Could not access Data.Passes", Duration = 3, Image = 4483362458 })
 		end
+	end,
+})
+
+-- ┌──────────────────────────────────────────────────────────────┐
+-- │  TEST TAB                                                    │
+-- └──────────────────────────────────────────────────────────────┘
+local TestTab = Window:CreateTab("Test", "flask-conical")
+
+local testCrateAmt = 100
+local testItemAmt  = 100
+local testSelItem  = ALL_ITEMS[1]
+
+TestTab:CreateSection("Open Crates")
+
+TestTab:CreateInput({
+	Name                     = "Amount of crates",
+	PlaceholderText          = "100",
+	RemoveTextAfterFocusLost = false,
+	Flag                     = "test_crate_amt",
+	Callback                 = function(v)
+		testCrateAmt = math.max(1, tonumber(v) or 100)
+	end,
+})
+
+TestTab:CreateButton({
+	Name     = "Open Basic Crate",
+	Info     = "Sets crate count to amount then fires OpenCrate",
+	Callback = function()
+		local n = testCrateAmt
+		pcall(function() player.Data.Items["Basic Crate"].Value = n end)
+		rOpenCrate:FireServer("Basic Crate", n)
+		Rayfield:Notify({ Title = "Done", Content = "Opened " .. n .. " Basic Crates", Duration = 3, Image = 4483362458 })
+	end,
+})
+
+TestTab:CreateSection("Use Item")
+
+TestTab:CreateDropdown({
+	Name            = "Select Item",
+	Options         = ALL_ITEMS,
+	CurrentOption   = { ALL_ITEMS[1] },
+	MultipleOptions = false,
+	Flag            = "test_sel_item",
+	Callback        = function(v)
+		testSelItem = resolve(type(v) == "table" and v[1] or v)
+	end,
+})
+
+TestTab:CreateInput({
+	Name                     = "Amount (fires remote n times)",
+	PlaceholderText          = "10",
+	RemoveTextAfterFocusLost = false,
+	Flag                     = "test_item_amt",
+	Callback                 = function(v)
+		testItemAmt = math.max(1, tonumber(v) or 10)
+	end,
+})
+
+TestTab:CreateButton({
+	Name     = "Use Item",
+	Info     = "Sets item count then fires UseItem n times with a small delay",
+	Callback = function()
+		local item = testSelItem
+		local n    = testItemAmt
+		task.spawn(function()
+			pcall(function() player.Data.Items[item].Value = n end)
+			for i = 1, n do
+				rUseItem:FireServer(item, 1)
+				task.wait(0.1)
+			end
+			Rayfield:Notify({ Title = "Done", Content = "Used " .. item .. " x" .. n, Duration = 3, Image = 4483362458 })
+		end)
 	end,
 })
