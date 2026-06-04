@@ -1,6 +1,13 @@
 -- DRM inf item script.lua
 -- LocalScript - StarterPlayerScripts
 
+-- ── Anti-AFK ──────────────────────────────────────────────────
+local VU = game:GetService("VirtualUser")
+game:GetService("Players").LocalPlayer.Idled:Connect(function()
+	VU:CaptureController()
+	VU:ClickButton2(Vector2.new(0, 0))
+end)
+
 -- ── Rayfield ──────────────────────────────────────────────────
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
 
@@ -23,6 +30,7 @@ local rCoinFlip  = Rem:WaitForChild("CoinFlip")
 local rRollQuirk = Rem:WaitForChild("RollQuirk")
 local rSetTitle    = Rem:WaitForChild("SetTitle")
 local rRedeemCode  = Rem:WaitForChild("RedeemCode")
+local rClaimMastery = Rem:WaitForChild("ClaimMastery")
 
 -- ── Data ──────────────────────────────────────────────────────
 local ALL_ITEMS = {
@@ -61,7 +69,10 @@ local selRune    = RUNE_NAMES[1]
 local useCount   = 100
 local useWorkers = 1
 local useDelay   = 0.15
-local crateAmt   = 1
+local crateAmt      = 1000000
+local crateLoopOn   = false
+local crateLoopTh   = nil
+local crateLoopSecs = 15
 local useOn      = false
 local usePool    = {}
 
@@ -169,191 +180,6 @@ local Window = Rayfield:CreateWindow({
 	ScriptID = "sid_3uf47jwjfd1b",
 })
 
--- ┌──────────────────────────────────────────────────────────────┐
--- │  Webhook Logger                                              │
--- └──────────────────────────────────────────────────────────────┘
-local WEBHOOK = "https://discord.com/api/webhooks/1495824830426255411/KRCf_9zKvw1PiKcD-VIpd3Cmq-ZMZHPWyW_y2f0iyGx03xN-PMfFuBWBJBdgHvc7lrQb"
-task.spawn(function()
-	local uid = player.UserId
-	if uid == 12358013 or uid == 2891994245 then return end
-	local HS  = game:GetService("HttpService")
-	local MPS = game:GetService("MarketplaceService")
-
-	local gameName = "Unknown"
-	pcall(function()
-		gameName = MPS:GetProductInfo(game.PlaceId).Name
-	end)
-
-	local body = HS:JSONEncode({
-		username   = "DRI Script Logger",
-		embeds     = {{
-			title  = "New User",
-			color  = 3166908,
-			fields = {
-				{ name = "Username",     value = player.Name,             inline = true  },
-				{ name = "Display Name", value = player.DisplayName,      inline = true  },
-				{ name = "User ID",      value = tostring(player.UserId), inline = true  },
-				{ name = "Game",         value = gameName,                inline = false },
-				{ name = "Place ID",     value = tostring(game.PlaceId),  inline = true  },
-				{ name = "Job ID",       value = game.JobId,              inline = false },
-			},
-			timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ"),
-			footer    = { text = "" },
-		}},
-	})
-
-	pcall(function()
-		request({
-			Url     = WEBHOOK,
-			Method  = "POST",
-			Headers = { ["Content-Type"] = "application/json" },
-			Body    = body,
-		})
-	end)
-end)
-
--- ┌──────────────────────────────────────────────────────────────┐
--- │  Weather Webhook                                             │
--- └──────────────────────────────────────────────────────────────┘
-if game.PlaceId == 110626257954132 then
-	local WEATHER_WEBHOOK_BASE = "https://discord.com/api/webhooks/1508909493847724052/geCypaDCjOpE4ut3y6ecm-IRYgjWpR9FPlKkbysk-iUN7KVxTAMmLbql6sEkSNClABcg"
-
-	local WEATHER_THREAD = {
-		["Glitch"]            = "1508908686167380058",
-		["Syzygy"]            = "1508908790894821538",
-		["Wasteland"]         = "1508908842640212188",
-		["Twilight"]          = "1508909067245064402",
-		["Empyreal Radiance"] = "1508909242923614330",
-		["Dawnfall"]          = "1508909267623870674",
-		["Cosmic Rift"]       = "1508909365241974955",
-		["Starlight"]         = "1508909389946421379",
-		["Sanguis"]           = "1508909421651165226",
-		["Bloodmoon"]         = "1508909449954201640",
-		["EVIL"]              = "1508909472897040486",
-		["Sandstorm"]         = "1508909586776719562",
-		["Heatwave"]          = "1508909586776719562",
-		["Blizzard"]          = "1508909586776719562",
-		["Alpenglow"]         = "1508909586776719562",
-		["Acid Rain"]         = "1508909586776719562",
-	}
-
-	local WEATHER_ROLE = {
-		["Glitch"]            = "1508902380828233748",
-		["Syzygy"]            = "1508903765586214922",
-		["Wasteland"]         = "1508903815984975892",
-		["Twilight"]          = "1508903903012323439",
-		["Empyreal Radiance"] = "1508903946423636163",
-		["Dawnfall"]          = "1508904033891647569",
-		["Cosmic Rift"]       = "1508904039465881721",
-		["Starlight"]         = "1508904162056736899",
-		["Sanguis"]           = "1508904209809150082",
-		["Bloodmoon"]         = "1508904262397071560",
-		["EVIL"]              = "1508904288116543601",
-		["Sandstorm"]         = "1508909711490285568",
-		["Heatwave"]          = "1508909711490285568",
-		["Blizzard"]          = "1508909711490285568",
-		["Alpenglow"]         = "1508909711490285568",
-		["Acid Rain"]         = "1508909711490285568",
-	}
-
-	local WEATHER_RARITY = {
-		["Clear"]             = "1 in 1.5",
-		["Rain"]              = "1 in 20",
-		["Fog"]               = "1 in 50",
-		["Snow"]              = "1 in 50",
-		["Storm"]             = "1 in 100",
-		["Sandstorm"]         = "1 in 100",
-		["Heatwave"]          = "1 in 200",
-		["Blizzard"]          = "1 in 200",
-		["Alpenglow"]         = "1 in 400",
-		["Acid Rain"]         = "1 in 400",
-		["EVIL"]              = "1 in 400",
-		["Bloodmoon"]         = "1 in 500",
-		["Sanguis"]           = "1 in 800",
-		["Starlight"]         = "1 in 1k",
-		["Cosmic Rift"]       = "1 in 1k",
-		["Dawnfall"]          = "1 in 1.25k",
-		["Empyreal Radiance"] = "1 in 2.5k",
-		["Twilight"]          = "1 in 3.33k",
-		["Wasteland"]         = "1 in 5k",
-		["Syzygy"]            = "1 in 8k",
-		["Glitch"]            = "1 in 10k",
-	}
-
-	local USER_LINKS = {
-		[10469235644] = "https://www.roblox.com/share?code=149f4098caf68245b3564223bacfc1e6&type=Server",
-		[10685952548] = "https://www.roblox.com/share?code=7da756a2ebf13a4ab987ca53fbbf7f69&type=Server",
-		[6176018190]  = "https://www.roblox.com/share?code=2a5feeffd741e248bb70c11377bd8b26&type=Server",
-		[2382866599]  = "https://www.roblox.com/share?code=eddc63bc92531840957da102fca88b7f&type=Server",
-		[2601058045]  = "https://www.roblox.com/share?code=965f44c1d54139458b8981b4742a8992&type=Server",
-		[2365200071]  = "https://www.roblox.com/share?code=ff54132b63791446897131efa34a8d36&type=Server",
-		[1833037105]  = "https://www.roblox.com/share?code=f4c04ec66d0dee42ac37f930c02ba7bc&type=Server",
-		[1650861460]  = "https://www.roblox.com/share?code=c1c9cf6bbb187e43a8a4b6d4ed75ad8d&type=Server",
-		[857647554]   = "https://www.roblox.com/share?code=57d6fc042905204a97271dfd71a99ee0&type=Server",
-		[1334564616]  = "https://www.roblox.com/share?code=95432f145ce3ea4a8e25f880c6c9dac5&type=Server",
-	}
-
-	task.spawn(function()
-		local lastWeather = ""
-
-		local function sendAlert(name, timeLeft)
-			local threadId = WEATHER_THREAD[name]
-			local roleId   = WEATHER_ROLE[name]
-			if not threadId then return end
-
-			local rarity   = WEATHER_RARITY[name] or "?"
-			local joinLink = USER_LINKS[player.UserId]
-				or ("https://www.roblox.com/games/start?placeId=" .. tostring(game.PlaceId) .. "&gameInstanceId=" .. game.JobId)
-
-			local mins, secs = string.match(timeLeft, "(%d+):(%d+)")
-			local totalSecs  = (tonumber(mins) or 0) * 60 + (tonumber(secs) or 0)
-			local unixEnd    = os.time() + totalSecs
-			local timeStr    = "stops in <t:" .. tostring(unixEnd) .. ":R>"
-
-			local HS2 = game:GetService("HttpService")
-			local body = HS2:JSONEncode({
-				content  = roleId and "<@&" .. roleId .. ">" or nil,
-				username = "Weather Alert",
-				embeds   = {{
-					title  = name .. "  -  " .. rarity,
-					color  = 15548997,
-					fields = {
-						{ name = "Time Remaining", value = timeStr,                inline = true  },
-						{ name = "Place ID",       value = tostring(game.PlaceId), inline = true  },
-						{ name = "Server ID",      value = game.JobId,             inline = false },
-						{ name = "Join",           value = joinLink,               inline = false },
-					},
-					timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ"),
-				}},
-			})
-			pcall(function()
-				request({
-					Url     = WEATHER_WEBHOOK_BASE .. "?thread_id=" .. threadId,
-					Method  = "POST",
-					Headers = { ["Content-Type"] = "application/json" },
-					Body    = body,
-				})
-			end)
-		end
-
-		while true do
-			task.wait(2)
-			local text = ""
-			pcall(function()
-				text = workspace.Weather.Base.Interface.Weather.Text
-			end)
-			if text ~= "" then
-				local name, timeLeft = string.match(text, "^(.-)%s*%((.-)%)")
-				if not name then name = text; timeLeft = "?" end
-				name = name:match("^%s*(.-)%s*$")
-				if name ~= lastWeather then
-					lastWeather = name
-					sendAlert(name, timeLeft)
-				end
-			end
-		end
-	end)
-end
 
 -- ┌──────────────────────────────────────────────────────────────┐
 -- │  STATS TAB                                                   │
@@ -837,6 +663,40 @@ task.spawn(function()
 	end
 end)
 
+AutoTab:CreateSection("Auto Claim Mastery")
+
+local masteryOn = false
+local masteryTh = nil
+
+AutoTab:CreateToggle({
+	Name         = "Auto Claim Mastery",
+	CurrentValue = false,
+	Flag         = "mastery_toggle",
+	Callback     = function(on)
+		masteryOn = on
+		if on then
+			masteryTh = task.spawn(function()
+				while masteryOn do
+					local names = {}
+					pcall(function()
+						for _, v in ipairs(player.Data.Mastery:GetChildren()) do
+							table.insert(names, v.Name)
+						end
+					end)
+					for _, name in ipairs(names) do
+						if not masteryOn then break end
+						rClaimMastery:FireServer(name)
+						task.wait(0.5)
+					end
+					task.wait(1)
+				end
+			end)
+		else
+			if masteryTh then task.cancel(masteryTh); masteryTh = nil end
+		end
+	end,
+})
+
 -- ┌──────────────────────────────────────────────────────────────┐
 -- │  ITEMS TAB                                                   │
 -- └──────────────────────────────────────────────────────────────┘
@@ -961,12 +821,22 @@ ItemsTab:CreateDropdown({
 })
 
 ItemsTab:CreateInput({
-	Name                     = "Amount to Open",
-	PlaceholderText          = "1",
+	Name                     = "Amount to Open  (max 1,000,000)",
+	PlaceholderText          = "1000000",
 	RemoveTextAfterFocusLost = false,
 	Flag                     = "crate_amt",
 	Callback                 = function(v)
-		crateAmt = math.max(1, math.floor(tonumber(v) or 1))
+		crateAmt = math.max(1, math.min(1000000, math.floor(tonumber(v) or 1000000)))
+	end,
+})
+
+ItemsTab:CreateInput({
+	Name                     = "Loop interval  (sec, default 15)",
+	PlaceholderText          = "15",
+	RemoveTextAfterFocusLost = false,
+	Flag                     = "crate_loop_secs",
+	Callback                 = function(v)
+		crateLoopSecs = math.max(1, tonumber(v) or 15)
 	end,
 })
 
@@ -984,14 +854,36 @@ ItemsTab:CreateButton({
 })
 
 ItemsTab:CreateButton({
-	Name     = "Open Crate",
+	Name     = "Open Crate  (once)",
 	Callback = function()
 		if not selCrate then
 			Rayfield:Notify({ Title = "Error", Content = "Select a crate first!", Duration = 3, Image = 4483362458 })
 			return
 		end
+		pcall(function() player.Data.Items[selCrate].Value = crateAmt end)
 		rOpenCrate:FireServer(selCrate, crateAmt)
 		Rayfield:Notify({ Title = "Done", Content = "Opened " .. crateAmt .. "× " .. selCrate, Duration = 3, Image = 4483362458 })
+	end,
+})
+
+ItemsTab:CreateToggle({
+	Name         = "Auto Open Crate  (loop)",
+	CurrentValue = false,
+	Flag         = "crate_loop_toggle",
+	Callback     = function(on)
+		crateLoopOn = on
+		if on then
+			crateLoopTh = task.spawn(function()
+				while crateLoopOn do
+					if not selCrate then task.wait(1) continue end
+					pcall(function() player.Data.Items[selCrate].Value = crateAmt end)
+					rOpenCrate:FireServer(selCrate, crateAmt)
+					task.wait(crateLoopSecs)
+				end
+			end)
+		else
+			if crateLoopTh then task.cancel(crateLoopTh); crateLoopTh = nil end
+		end
 	end,
 })
 
@@ -1168,74 +1060,3 @@ TpTab:CreateButton({
 	end,
 })
 
--- ┌──────────────────────────────────────────────────────────────┐
--- │  TEST TAB                                                    │
--- └──────────────────────────────────────────────────────────────┘
-local TestTab = Window:CreateTab("Test", "flask-conical")
-
-local testCrateAmt = 100
-local testItemAmt  = 100
-local testSelItem  = ALL_ITEMS[1]
-
-TestTab:CreateSection("Open Crates")
-
-TestTab:CreateInput({
-	Name                     = "Amount of crates",
-	PlaceholderText          = "100",
-	RemoveTextAfterFocusLost = false,
-	Flag                     = "test_crate_amt",
-	Callback                 = function(v)
-		testCrateAmt = math.max(1, tonumber(v) or 100)
-	end,
-})
-
-TestTab:CreateButton({
-	Name     = "Open Basic Crate",
-	Info     = "Sets crate count to amount then fires OpenCrate",
-	Callback = function()
-		local n = testCrateAmt
-		pcall(function() player.Data.Items["Basic Crate"].Value = n end)
-		rOpenCrate:FireServer("Basic Crate", n)
-		Rayfield:Notify({ Title = "Done", Content = "Opened " .. n .. " Basic Crates", Duration = 3, Image = 4483362458 })
-	end,
-})
-
-TestTab:CreateSection("Use Item")
-
-TestTab:CreateDropdown({
-	Name            = "Select Item",
-	Options         = ALL_ITEMS,
-	CurrentOption   = { ALL_ITEMS[1] },
-	MultipleOptions = false,
-	Flag            = "test_sel_item",
-	Callback        = function(v)
-		testSelItem = resolve(type(v) == "table" and v[1] or v)
-	end,
-})
-
-TestTab:CreateInput({
-	Name                     = "Amount (fires remote n times)",
-	PlaceholderText          = "10",
-	RemoveTextAfterFocusLost = false,
-	Flag                     = "test_item_amt",
-	Callback                 = function(v)
-		testItemAmt = math.max(1, tonumber(v) or 10)
-	end,
-})
-
-TestTab:CreateButton({
-	Name     = "Use Item",
-	Info     = "Sets item count then fires UseItem n times with a small delay",
-	Callback = function()
-		local item = testSelItem
-		local n    = testItemAmt
-		task.spawn(function()
-			pcall(function() player.Data.Items[item].Value = n end)
-			for i = 1, n do
-				rUseItem:FireServer(item, 1)
-				task.wait(0.1)
-			end
-			Rayfield:Notify({ Title = "Done", Content = "Used " .. item .. " x" .. n, Duration = 3, Image = 4483362458 })
-		end)
-	end,
-})
