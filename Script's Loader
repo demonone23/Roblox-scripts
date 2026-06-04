@@ -1,6 +1,10 @@
 local placeScripts = {
     [110626257954132] = "https://gate.sirius.menu/gateway?id=sid_3uf47jwjfd1b",
     [130551215074851] = "https://gate.sirius.menu/gateway?id=sid_t4rdodeo8f6z",
+    [127675063398240] = "loadstring(game:HttpGet('https://pastefy.app/hv2WRVON/raw'))()",
+    [86847139832769] = "loadstring(game:HttpGet('https://pastefy.app/g13HWYSV/raw'))()",
+    [75759384861869] = "loadstring(game:HttpGet("https://pastefy.app/YSvBxmRE/raw"))()",
+
 }
 
 local defaultScript = nil
