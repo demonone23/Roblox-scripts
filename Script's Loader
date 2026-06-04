@@ -34,7 +34,7 @@ local function fetchUrl(url)
 
     if res.StatusCode ~= 200 then
         -- print body so you can see the actual server error message
-        print("[PlaceLoader] Server response body: " .. tostring(res.Body))
+        print("[scripthub] Server response body: " .. tostring(res.Body))
         return false, "HTTP " .. tostring(res.StatusCode)
     end
 
@@ -70,8 +70,8 @@ local url = placeScripts[placeId] or defaultScript
 if url then
     local success, err = loadFromUrl(url)
     if not success then
-        warn(("[PlaceLoader] Place %d — %s"):format(placeId, err))
+        warn(("[scripthub] Place %d — %s"):format(placeId, err))
     end
 else
-    warn(("[PlaceLoader] No script configured for place %d"):format(placeId))
+    warn(("[scripthub] No script configured for place %d"):format(placeId))
 end
