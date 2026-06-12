@@ -1,0 +1,455 @@
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local LocalPlayer = Players.LocalPlayer
+
+-- Helper: get the player's tycoon folder dynamically
+local function getTycoon()
+    local tycoonOwned = LocalPlayer:WaitForChild("TycoonOwned")
+    -- ObjectValue → .Value is the folder itself; StringValue → look it up by name
+    if typeof(tycoonOwned.Value) == "Instance" then
+        return tycoonOwned.Value
+    end
+    return workspace:WaitForChild("Tycoons"):WaitForChild(tycoonOwned.Value)
+end
+
+local Window = Rayfield:CreateWindow({
+    Name = "Factory Tycoon",
+    LoadingTitle = "Factory Tycoon",
+    LoadingSubtitle = "Loading...",
+    Theme = "Default",
+    DisableRayfieldPrompts = false,
+    DisableBuildWarnings = false,
+    ConfigurationSaving = { Enabled = false },
+    KeySystem = false,
+})
+
+local SHOW_DEBUG = false -- set to true in source to reveal the Debug tab
+
+local Tab = Window:CreateTab("Main", 4483362458)
+local DebugTab = SHOW_DEBUG and Window:CreateTab("Debug", 4483362458) or nil
+
+-- ── Debug Button ─────────────────────────────────────────────────────────────
+if DebugTab then DebugTab:CreateButton({
+    Name = "Run Debug",
+    Callback = function()
+        print("=== Factory Tycoon Debug ===")
+
+        -- Check TycoonOwned
+        local tycoonOwned = LocalPlayer:FindFirstChild("TycoonOwned")
+        if not tycoonOwned then
+            warn("[DEBUG] TycoonOwned NOT found on LocalPlayer!")
+            print("[DEBUG] LocalPlayer children:")
+            for _, v in ipairs(LocalPlayer:GetChildren()) do
+                print("  -", v.Name, "|", v.ClassName)
+            end
+            return
+        end
+        print("[DEBUG] TycoonOwned found. Value =", tostring(tycoonOwned.Value), "| ClassName =", tycoonOwned.ClassName, "| typeof(Value) =", typeof(tycoonOwned.Value))
+
+        -- Check Tycoons folder
+        local tycoons = workspace:FindFirstChild("Tycoons")
+        if not tycoons then
+            warn("[DEBUG] workspace.Tycoons NOT found!")
+            return
+        end
+        print("[DEBUG] workspace.Tycoons found. Children:")
+        for _, v in ipairs(tycoons:GetChildren()) do
+            print("  -", v.Name)
+        end
+
+        -- Check player's tycoon (handle both ObjectValue and StringValue)
+        local tycoonFolder
+        if typeof(tycoonOwned.Value) == "Instance" then
+            tycoonFolder = tycoonOwned.Value
+            print("[DEBUG] TycoonOwned is ObjectValue, using folder directly:", tycoonFolder:GetFullName())
+        else
+            tycoonFolder = tycoons:FindFirstChild(tycoonOwned.Value)
+        end
+        if not tycoonFolder then
+            warn("[DEBUG] Tycoon folder '" .. tostring(tycoonOwned.Value) .. "' NOT found in workspace.Tycoons!")
+            return
+        end
+        print("[DEBUG] Tycoon folder found:", tycoonFolder.Name)
+
+        -- Check Buttons
+        local buttons = tycoonFolder:FindFirstChild("Buttons")
+        if not buttons then
+            warn("[DEBUG] 'Buttons' NOT found in tycoon folder!")
+            print("[DEBUG] Tycoon folder children:")
+            for _, v in ipairs(tycoonFolder:GetChildren()) do
+                print("  -", v.Name, "|", v.ClassName)
+            end
+            return
+        end
+        print("[DEBUG] Buttons folder found. Children:")
+        for _, v in ipairs(buttons:GetChildren()) do
+            print("  -", v.Name)
+        end
+
+        -- Check Manual Block Dropper1
+        local dropper = buttons:FindFirstChild("Manual Block Dropper1")
+        if not dropper then
+            warn("[DEBUG] 'Manual Block Dropper1' NOT found in Buttons!")
+        else
+            print("[DEBUG] Manual Block Dropper1 found. Children:")
+            for _, v in ipairs(dropper:GetChildren()) do
+                print("  -", v.Name, "|", v.ClassName)
+            end
+        end
+
+        -- Check Build > Collect
+        local build = tycoonFolder:FindFirstChild("Build")
+        if not build then
+            warn("[DEBUG] 'Build' NOT found in tycoon folder!")
+        else
+            local collect = build:FindFirstChild("Collect")
+            if not collect then
+                warn("[DEBUG] 'Collect' NOT found in Build! Build children:")
+                for _, v in ipairs(build:GetChildren()) do
+                    print("  -", v.Name)
+                end
+            else
+                print("[DEBUG] Build.Collect found:", collect:GetFullName())
+            end
+        end
+
+        -- Check CollectMoney event
+        local events = ReplicatedStorage:FindFirstChild("Events")
+        if not events then
+            warn("[DEBUG] ReplicatedStorage.Events NOT found!")
+        else
+            local collectMoney = events:FindFirstChild("CollectMoney")
+            if not collectMoney then
+                warn("[DEBUG] CollectMoney event NOT found! Events children:")
+                for _, v in ipairs(events:GetChildren()) do
+                    print("  -", v.Name)
+                end
+            else
+                print("[DEBUG] CollectMoney event found:", collectMoney:GetFullName())
+            end
+        end
+
+        print("=== Debug Done ===")
+    end,
+}) end
+
+if DebugTab then DebugTab:CreateButton({
+    Name = "Dump Button Prices",
+    Callback = function()
+        print("=== Button Price Dump ===")
+        local ok, err = pcall(function()
+            local buttons = getTycoon():WaitForChild("Buttons")
+            local list = {}
+            for _, button in ipairs(buttons:GetChildren()) do
+                local priceObj = button:FindFirstChild("Price")
+                local btnFolder = button:FindFirstChild("Button")
+                local part = btnFolder and btnFolder:FindFirstChild("Part")
+                local price = priceObj and math.floor(priceObj.Value) or "NO PRICE"
+                local hasPart = part ~= nil
+                local visibleObj = button:FindFirstChild("IsButtonVisible")
+                local visible = visibleObj and tostring(visibleObj.Value) or "NO VALUE"
+                table.insert(list, { name = button.Name, price = priceObj and math.floor(priceObj.Value) or math.huge, hasPart = hasPart, priceStr = tostring(price), visible = visible })
+            end
+            table.sort(list, function(a, b) return a.price < b.price end)
+            for _, entry in ipairs(list) do
+                print(string.format("  $%-8s | Visible: %-5s | Part: %s | %s", entry.priceStr, entry.visible, tostring(entry.hasPart), entry.name))
+            end
+        end)
+        if not ok then warn("[DEBUG] Error:", err) end
+        print("=== Dump Done ===")
+    end,
+}) end
+
+-- ── Instant Rebirth ─────────────────────────────────────────────────────────
+local rebirthActive = false
+
+Tab:CreateToggle({
+    Name = "Instant Rebirth",
+    CurrentValue = false,
+    Flag = "InstantRebirth",
+    Callback = function(enabled)
+        rebirthActive = enabled
+        if enabled then
+            task.spawn(function()
+                while rebirthActive do
+                    pcall(function()
+                        local reqText = LocalPlayer.PlayerGui.MainUI.Frames.Rebirth.Main.Content.LeftItems.RequirementFrame.RequirementText.Text
+                        local req = tonumber(reqText:match("/%s*(%d+)"))
+                        if not req then return end
+                        local args = { req + 1, req, getTycoon() }
+                        ReplicatedStorage:WaitForChild("Events"):WaitForChild("RequestRebirth"):FireServer(unpack(args))
+                    end)
+                    task.wait(1)
+                end
+            end)
+        end
+    end,
+})
+
+-- ── Toggle 1: Manual Block Dropper ──────────────────────────────────────────
+local manualDropperActive = false
+
+Tab:CreateToggle({
+    Name = "Manual Block Dropper",
+    CurrentValue = false,
+    Flag = "ManualBlockDropper",
+    Callback = function(enabled)
+        manualDropperActive = enabled
+        if enabled then
+            task.spawn(function()
+                while manualDropperActive do
+                    pcall(function()
+                        local prompt = getTycoon()
+                            :WaitForChild("Buttons")
+                            :WaitForChild("Manual Block Dropper1")
+                            :WaitForChild("Model")
+                            :WaitForChild("Button")
+                            :WaitForChild("ProximityPrompt")
+                        fireproximityprompt(prompt)
+                    end)
+                    task.wait(0.1)
+                end
+            end)
+        end
+    end,
+})
+
+-- ── Toggle 2: Auto Collect ───────────────────────────────────────────────────
+local autoCollectActive = false
+
+Tab:CreateToggle({
+    Name = "Auto Collect",
+    CurrentValue = false,
+    Flag = "AutoCollect",
+    Callback = function(enabled)
+        autoCollectActive = enabled
+        if enabled then
+            task.spawn(function()
+                while autoCollectActive do
+                    pcall(function()
+                        local collectPart = getTycoon()
+                            :WaitForChild("Build")
+                            :WaitForChild("Collect")
+                        ReplicatedStorage
+                            :WaitForChild("Events")
+                            :WaitForChild("CollectMoney")
+                            :FireServer(collectPart)
+                    end)
+                    task.wait(0.5)
+                end
+            end)
+        end
+    end,
+})
+
+-- ── Toggle 3: Auto Buy ───────────────────────────────────────────────────────
+local autoBuyActive = false
+local autoBuyStatus
+
+-- Highlight instances reused every tick
+local buyingHighlight = Instance.new("Highlight")
+buyingHighlight.FillColor = Color3.fromRGB(0, 255, 0)
+buyingHighlight.OutlineColor = Color3.fromRGB(0, 255, 0)
+buyingHighlight.FillTransparency = 0.4
+buyingHighlight.OutlineTransparency = 0
+buyingHighlight.Adornee = nil
+buyingHighlight.Parent = game:GetService("CoreGui")
+
+local nextHighlight = Instance.new("Highlight")
+nextHighlight.FillColor = Color3.fromRGB(255, 200, 0)
+nextHighlight.OutlineColor = Color3.fromRGB(255, 200, 0)
+nextHighlight.FillTransparency = 0.4
+nextHighlight.OutlineTransparency = 0
+nextHighlight.Adornee = nil
+nextHighlight.Parent = game:GetService("CoreGui")
+
+-- Money-per-second rolling tracker (5 second window)
+local moneyHistory = {}
+local lastMPS = 0
+
+local function getMPS()
+    local dataFolder = LocalPlayer:FindFirstChild("DataFolder")
+    local moneyObj = dataFolder and dataFolder:FindFirstChild("Money")
+    if not moneyObj then return lastMPS end
+    local now = tick()
+    table.insert(moneyHistory, { t = now, v = math.floor(moneyObj.Value) })
+    while #moneyHistory > 0 and now - moneyHistory[1].t > 5 do
+        table.remove(moneyHistory, 1)
+    end
+    if #moneyHistory < 2 then return lastMPS end
+    -- sum only positive deltas so purchases don't corrupt the income rate
+    local totalIncome = 0
+    local dt = moneyHistory[#moneyHistory].t - moneyHistory[1].t
+    for i = 2, #moneyHistory do
+        local delta = moneyHistory[i].v - moneyHistory[i - 1].v
+        if delta > 0 then totalIncome = totalIncome + delta end
+    end
+    if dt <= 0 then return lastMPS end
+    lastMPS = totalIncome / dt
+    return lastMPS
+end
+
+local function formatTime(secs)
+    if secs <= 0 or secs ~= secs then return "now" end
+    if secs < 60 then return string.format("%.0fs", secs) end
+    if secs < 3600 then return string.format("%.0fm %.0fs", math.floor(secs / 60), secs % 60) end
+    return string.format("%.0fh %.0fm", math.floor(secs / 3600), math.floor((secs % 3600) / 60))
+end
+
+Tab:CreateToggle({
+    Name = "Auto Buy",
+    CurrentValue = false,
+    Flag = "AutoBuy",
+    Callback = function(enabled)
+        autoBuyActive = enabled
+        if enabled then
+            task.spawn(function()
+                while autoBuyActive do
+                    pcall(function()
+                        local character = LocalPlayer.Character
+                        if not character then return end
+                        local hrp = character:FindFirstChild("HumanoidRootPart")
+                        if not hrp then return end
+
+                        local dataFolder = LocalPlayer:FindFirstChild("DataFolder")
+                        local moneyObj = dataFolder and dataFolder:FindFirstChild("Money")
+                        local currentMoney = moneyObj and math.floor(moneyObj.Value) or 0
+
+                        local buttons = getTycoon():WaitForChild("Buttons")
+
+                        local nextTarget = nil
+                        local nextPrice = math.huge
+                        local nextPart = nil
+                        local affordable = {}
+
+                        local rebirths = (LocalPlayer:FindFirstChild("leaderstats") and LocalPlayer.leaderstats:FindFirstChild("Rebirths") and LocalPlayer.leaderstats.Rebirths.Value) or 0
+
+                        for _, button in ipairs(buttons:GetChildren()) do
+                            pcall(function()
+                                local btnFolder = button:FindFirstChild("Button")
+                                local part = btnFolder and btnFolder:FindFirstChild("Part")
+                                if not part then return end
+
+                                local visibleObj = button:FindFirstChild("IsButtonVisible")
+                                if not visibleObj or not visibleObj.Value then return end
+
+                                local rebirthPriceObj = button:FindFirstChild("RebirthPrice")
+                                local priceObj = button:FindFirstChild("Price")
+
+                                if rebirthPriceObj then
+                                    local rPrice = math.floor(rebirthPriceObj.Value)
+                                    if rebirths >= rPrice then
+                                        table.insert(affordable, { part = part, price = 0, name = button.Name })
+                                    elseif rPrice < nextPrice then
+                                        nextPrice = rPrice
+                                        nextTarget = button.Name .. " (" .. rPrice .. " rebirths)"
+                                        nextPart = part
+                                    end
+                                elseif priceObj then
+                                    local price = math.floor(priceObj.Value)
+                                    if currentMoney >= price then
+                                        table.insert(affordable, { part = part, price = price, name = button.Name })
+                                    elseif price < nextPrice then
+                                        nextPrice = price
+                                        nextTarget = button.Name
+                                        nextPart = part
+                                    end
+                                end
+                            end)
+                        end
+
+                        -- buy only the cheapest affordable button this tick
+                        table.sort(affordable, function(a, b) return a.price < b.price end)
+                        if #affordable > 0 then
+                            firetouchinterest(affordable[1].part, hrp, 0)
+                        end
+
+                        -- green highlight = cheapest thing being bought right now
+                        buyingHighlight.Adornee = (#affordable > 0) and affordable[1].part or nil
+                        -- yellow highlight = next unaffordable target
+                        nextHighlight.Adornee = nextPart
+                    end)
+                    task.wait(0.1)
+                end
+            end)
+        else
+            buyingHighlight.Adornee = nil
+            nextHighlight.Adornee = nil
+        end
+    end,
+})
+
+autoBuyStatus = Tab:CreateParagraph({ Title = "Auto Buy Status", Content = "Scanning..." })
+
+-- Always-running status loop (independent of toggle)
+task.spawn(function()
+    while true do
+        pcall(function()
+            local dataFolder = LocalPlayer:FindFirstChild("DataFolder")
+            local moneyObj = dataFolder and dataFolder:FindFirstChild("Money")
+            local currentMoney = moneyObj and math.floor(moneyObj.Value) or 0
+
+            local nextTarget = nil
+            local nextPrice = math.huge
+            local cheapestAffordable = nil
+
+            local rebirths = (LocalPlayer:FindFirstChild("leaderstats") and LocalPlayer.leaderstats:FindFirstChild("Rebirths") and LocalPlayer.leaderstats.Rebirths.Value) or 0
+
+            local buttons = getTycoon():WaitForChild("Buttons")
+            for _, button in ipairs(buttons:GetChildren()) do
+                pcall(function()
+                    local btnFolder = button:FindFirstChild("Button")
+                    local part = btnFolder and btnFolder:FindFirstChild("Part")
+                    if not part then return end
+                    local visibleObj = button:FindFirstChild("IsButtonVisible")
+                    if not visibleObj or not visibleObj.Value then return end
+
+                    local rebirthPriceObj = button:FindFirstChild("RebirthPrice")
+                    local priceObj = button:FindFirstChild("Price")
+
+                    if rebirthPriceObj then
+                        local rPrice = math.floor(rebirthPriceObj.Value)
+                        if rebirths >= rPrice then
+                            if cheapestAffordable == nil then
+                                cheapestAffordable = { name = button.Name, price = 0, label = button.Name .. " (rebirth)" }
+                            end
+                        elseif rPrice < nextPrice then
+                            nextPrice = rPrice
+                            nextTarget = button.Name .. " (" .. rPrice .. " rebirths)"
+                        end
+                    elseif priceObj then
+                        local price = math.floor(priceObj.Value)
+                        if currentMoney >= price then
+                            if cheapestAffordable == nil or price < cheapestAffordable.price then
+                                cheapestAffordable = { name = button.Name, price = price, label = button.Name .. " ($" .. price .. ")" }
+                            end
+                        elseif price < nextPrice then
+                            nextPrice = price
+                            nextTarget = button.Name
+                        end
+                    end
+                end)
+            end
+
+            local mps = getMPS()
+            local buying = cheapestAffordable and ("Buying: " .. (cheapestAffordable.label or cheapestAffordable.name) .. "\n") or ""
+            local statusContent
+            if nextTarget then
+                local needed = nextPrice - currentMoney
+                local eta = mps > 0 and (needed / mps) or math.huge
+                statusContent = buying .. string.format(
+                    "Next: %s\nPrice: $%d | Need: $%d\nMPS: $%.1f/s | ETA: %s",
+                    nextTarget, nextPrice, math.max(0, needed), mps, formatTime(eta)
+                )
+            elseif cheapestAffordable then
+                statusContent = buying .. string.format("MPS: $%.1f/s", mps)
+            else
+                statusContent = string.format("All buttons purchased!\nMPS: $%.1f/s", mps)
+            end
+            autoBuyStatus:Set({ Title = "Auto Buy Status", Content = statusContent })
+        end)
+        task.wait(0.5)
+    end
+end)
