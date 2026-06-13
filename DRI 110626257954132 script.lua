@@ -175,13 +175,18 @@ task.spawn(function()
 end)
 
 -- ── Destroy crate popup / auto unbox UI ───────────────────────
+local BLOCKED_UI = { ["CratePopups"] = true, ["Auto Unbox"] = true }
 task.spawn(function()
 	local gui = player:WaitForChild("PlayerGui", 10)
 	if not gui then return end
 	local interface = gui:WaitForChild("Interface", 10)
 	if not interface then return end
-	pcall(function() interface:WaitForChild("CratePopups",  10):Destroy() end)
-	pcall(function() interface:WaitForChild("Auto Unbox",   10):Destroy() end)
+	for _, child in ipairs(interface:GetChildren()) do
+		if BLOCKED_UI[child.Name] then child:Destroy() end
+	end
+	interface.ChildAdded:Connect(function(child)
+		if BLOCKED_UI[child.Name] then child:Destroy() end
+	end)
 end)
 
 -- ── Helper to resolve dropdown value ──────────────────────────
