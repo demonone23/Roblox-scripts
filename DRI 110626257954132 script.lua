@@ -31,21 +31,26 @@ local rRollQuirk = Rem:WaitForChild("RollQuirk")
 local rSetTitle    = Rem:WaitForChild("SetTitle")
 local rRedeemCode  = Rem:WaitForChild("RedeemCode")
 local rClaimMastery = Rem:WaitForChild("ClaimMastery")
+local rBallLanded   = Rem:WaitForChild("BallLanded")
 
 -- ── Data ──────────────────────────────────────────────────────
 local ALL_ITEMS = {
+	"Apple", "Avocado", "Banana", "Blueberries", "Burger", "Carrot", "Cherries",
+	"Cookie", "Fried Chicken", "Grapes", "Lemon", "Orange", "Pear", "Pineapple",
+	"Pizza", "Strawberry",
+	"Amethyst Clover", "Clover", "Diamond Clover", "Ruby Clover",
 	"Lucky Vial", "Fortune Vial", "XP Vial", "Stats Vial", "Runic Vial",
-	"Apple", "Banana", "Orange", "Lemon", "Strawberry", "Blueberries", "Avocado", "Carrot",
-	"Cookie", "Burger", "Pizza", "Fried Chicken",
 	"Dice", "Super Dice", "Ultra Dice", "Inverted Dice",
-	"Fortune Rift", "Power Rift", "Echo Rift", "Rapid Rift",
+	"Fortune Rift", "Power Rift", "Echo Rift", "Rapid Rift", "Lucky Rift",
 	"Gravity Coil", "Speed Coil", "Super Coil", "Regen Coil", "Fusion Coil",
-	"Hourglass", "Cursor", "Golden Cursor", "Lucky Block", "Divine Heart",
+	"Cursor", "Golden Cursor",
+	"Hourglass", "Lucky Block", "Divine Heart", "Holy Heart",
 	"Mini Chest", "Mini Chest II", "Mini Chest III", "Mini Chest IV",
+	"Quest Reroll",
 }
 
 local ALL_CRATES = {
-	"Basic Crate", "Golden Crate", "Rainbow Crate", "Galaxy Crate",
+	"Basic Crate", "Golden Crate", "Rainbow Crate", "Galaxy Crate", "Abyss Crate",
 }
 
 local RUNE_NAMES = {
@@ -104,6 +109,9 @@ local tpMins     = 5
 local tpOn       = false
 local tpTh       = nil
 
+local pointsOn   = false
+local pointsTh   = nil
+
 local titleName     = "Starter"
 local titleColor    = Color3.new(0.792, 1, 0.620)
 local rainbowOn     = false
@@ -123,21 +131,19 @@ end
 -- ── NaN → inf patcher ─────────────────────────────────────────
 local function isNaN(n) return n ~= n end
 
-local function watchItem(obj)
-	if not (obj:IsA("NumberValue") or obj:IsA("IntValue")) then return end
-	if isNaN(obj.Value) then obj.Value = math.huge end
-	obj:GetPropertyChangedSignal("Value"):Connect(function()
-		if isNaN(obj.Value) then obj.Value = math.huge end
-	end)
-end
-
 task.spawn(function()
 	local data  = player:WaitForChild("Data",  10)
 	if not data then return end
 	local items = data:WaitForChild("Items", 10)
 	if not items then return end
-	for _, obj in ipairs(items:GetChildren()) do watchItem(obj) end
-	items.ChildAdded:Connect(function(obj) task.wait(); watchItem(obj) end)
+	while true do
+		task.wait(0.1)
+		for _, obj in ipairs(items:GetChildren()) do
+			if (obj:IsA("NumberValue") or obj:IsA("IntValue")) and obj.Value ~= obj.Value then
+				obj.Value = 1
+			end
+		end
+	end
 end)
 
 -- ── Hide "Max" badge when item count is inf ───────────────────
@@ -693,6 +699,27 @@ AutoTab:CreateToggle({
 			end)
 		else
 			if masteryTh then task.cancel(masteryTh); masteryTh = nil end
+		end
+	end,
+})
+
+AutoTab:CreateSection("Auto Get Points")
+
+AutoTab:CreateToggle({
+	Name         = "Auto Get Points",
+	CurrentValue = false,
+	Flag         = "points_toggle",
+	Callback     = function(on)
+		pointsOn = on
+		if on then
+			pointsTh = task.spawn(function()
+				while pointsOn do
+					rBallLanded:FireServer(1)
+					task.wait(0.5)
+				end
+			end)
+		else
+			if pointsTh then task.cancel(pointsTh); pointsTh = nil end
 		end
 	end,
 })
