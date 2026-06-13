@@ -74,10 +74,11 @@ local selRune    = RUNE_NAMES[1]
 local useCount   = 100
 local useWorkers = 1
 local useDelay   = 0.15
-local crateAmt      = 1000000
-local crateLoopOn   = false
-local crateLoopTh   = nil
-local crateLoopSecs = 15
+local crateAmt        = 1000000
+local crateOpenOn     = false
+local crateOpenPool   = {}
+local crateOpenRps    = 20
+local crateOpenWorkers = 4
 local useOn      = false
 local usePool    = {}
 
@@ -171,6 +172,16 @@ task.spawn(function()
 
 	checkAndHide()
 	maxLabel:GetPropertyChangedSignal("Visible"):Connect(checkAndHide)
+end)
+
+-- ── Destroy crate popup / auto unbox UI ───────────────────────
+task.spawn(function()
+	local gui = player:WaitForChild("PlayerGui", 10)
+	if not gui then return end
+	local interface = gui:WaitForChild("Interface", 10)
+	if not interface then return end
+	pcall(function() interface:WaitForChild("CratePopups",  10):Destroy() end)
+	pcall(function() interface:WaitForChild("Auto Unbox",   10):Destroy() end)
 end)
 
 -- ── Helper to resolve dropdown value ──────────────────────────
@@ -848,22 +859,22 @@ ItemsTab:CreateDropdown({
 })
 
 ItemsTab:CreateInput({
-	Name                     = "Amount to Open  (max 1,000,000)",
-	PlaceholderText          = "1000000",
+	Name                     = "Opens per second  (default 20)",
+	PlaceholderText          = "20",
 	RemoveTextAfterFocusLost = false,
-	Flag                     = "crate_amt",
+	Flag                     = "crate_rps",
 	Callback                 = function(v)
-		crateAmt = math.max(1, math.min(1000000, math.floor(tonumber(v) or 1000000)))
+		crateOpenRps = math.max(0.1, tonumber(v) or 20)
 	end,
 })
 
 ItemsTab:CreateInput({
-	Name                     = "Loop interval  (sec, default 15)",
-	PlaceholderText          = "15",
+	Name                     = "Workers  (parallel threads, default 4)",
+	PlaceholderText          = "4",
 	RemoveTextAfterFocusLost = false,
-	Flag                     = "crate_loop_secs",
+	Flag                     = "crate_workers",
 	Callback                 = function(v)
-		crateLoopSecs = math.max(1, tonumber(v) or 15)
+		crateOpenWorkers = math.max(1, math.floor(tonumber(v) or 4))
 	end,
 })
 
@@ -889,27 +900,38 @@ ItemsTab:CreateButton({
 		end
 		pcall(function() player.Data.Items[selCrate].Value = crateAmt end)
 		rOpenCrate:FireServer(selCrate, crateAmt)
-		Rayfield:Notify({ Title = "Done", Content = "Opened " .. crateAmt .. "× " .. selCrate, Duration = 3, Image = 4483362458 })
+		Rayfield:Notify({ Title = "Done", Content = "Opened 1M× " .. selCrate, Duration = 3, Image = 4483362458 })
 	end,
 })
 
 ItemsTab:CreateToggle({
-	Name         = "Auto Open Crate  (loop)",
+	Name         = "Auto Open Crate",
 	CurrentValue = false,
-	Flag         = "crate_loop_toggle",
+	Flag         = "crate_open_toggle",
 	Callback     = function(on)
-		crateLoopOn = on
+		crateOpenOn = on
 		if on then
-			crateLoopTh = task.spawn(function()
-				while crateLoopOn do
-					if not selCrate then task.wait(1) continue end
-					pcall(function() player.Data.Items[selCrate].Value = crateAmt end)
-					rOpenCrate:FireServer(selCrate, crateAmt)
-					task.wait(crateLoopSecs)
-				end
-			end)
+			crateOpenPool = {}
+			local workerDelay = crateOpenWorkers / crateOpenRps
+			local crate = selCrate
+			for _ = 1, crateOpenWorkers do
+				local t = task.spawn(function()
+					local lastFire = 0
+					while crateOpenOn do
+						local now = tick()
+						if now - lastFire >= workerDelay then
+							lastFire = now
+							pcall(function() player.Data.Items[crate].Value = crateAmt end)
+							rOpenCrate:FireServer(crate, crateAmt)
+						end
+						task.wait(0.01)
+					end
+				end)
+				table.insert(crateOpenPool, t)
+			end
 		else
-			if crateLoopTh then task.cancel(crateLoopTh); crateLoopTh = nil end
+			for _, t in ipairs(crateOpenPool) do task.cancel(t) end
+			crateOpenPool = {}
 		end
 	end,
 })
@@ -1025,6 +1047,7 @@ TpTab:CreateButton({
 			"EvenMoreGlyphs", "WeRollingNow", "Update5",
 			"ChestLuckBuff", "MyBad", "Skins", "RobLied",
 			"4-5", "1.5M", "Speedy", "Hiding", "Update7",
+			"Overrolling", "Optimize",
 		}
 		task.spawn(function()
 			for _, code in ipairs(CODES) do
